@@ -482,6 +482,133 @@
             font-weight: 500;
         }
 
+        /* Sección de Restricciones / Filtros Avanzados */
+        .filters-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 12px 20px;
+            padding-top: 16px;
+            border-top: 1px dashed var(--border-light);
+            margin-top: 18px;
+        }
+
+        .filter-check-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1.5px solid var(--border-color);
+            background: #f8fafc;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+        }
+
+        .filter-check-label:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .filter-check-label input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 17px;
+            height: 17px;
+            border: 2px solid var(--border-color);
+            border-radius: 5px;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .filter-check-label input[type="checkbox"]:checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .filter-check-label input[type="checkbox"]:checked::after {
+            content: '';
+            position: absolute;
+            top: 1px;
+            left: 4px;
+            width: 5px;
+            height: 9px;
+            border: 2px solid #ffffff;
+            border-top: none;
+            border-left: none;
+            transform: rotate(45deg);
+        }
+
+        .filter-check-label.active {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        /* Panel de exclusión de palabras */
+        .exclusion-panel {
+            display: none;
+            width: 100%;
+            animation: slideDown 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .exclusion-panel.visible {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .exclusion-panel label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.65px;
+            white-space: nowrap;
+        }
+
+        .exclusion-panel input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+            padding: 9px 14px;
+            border: 1.5px solid var(--accent-red-border);
+            border-radius: 10px;
+            font-size: 13px;
+            font-family: var(--font-sans);
+            color: var(--text-main);
+            outline: none;
+            background-color: var(--accent-red-light);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .exclusion-panel input[type="text"]:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px var(--accent-red-glow);
+            background: #ffffff;
+        }
+
+        .exclusion-hint {
+            font-size: 11px;
+            color: var(--text-light);
+            font-style: italic;
+        }
+
         /* Responsividad */
         @media (max-width: 640px) {
             body {
@@ -547,6 +674,25 @@
             <div class="form-group">
                 <label for="codAlt">Código Articulo Proveedor</label>
                 <input type="text" id="codAlt" placeholder="Ej: CONFECAT-01">
+            </div>
+        </div>
+
+        <!-- Filtros de Restricción -->
+        <div class="filters-bar">
+            <label class="filter-check-label" id="labelCod8" for="chkCod8">
+                <input type="checkbox" id="chkCod8" onchange="toggleFiltro('cod8', this)">
+                🔢 SOLO CÓDIGO DE 8 DÍGITOS
+            </label>
+
+            <label class="filter-check-label" id="labelExcluir" for="chkExcluir">
+                <input type="checkbox" id="chkExcluir" onchange="toggleFiltro('excluir', this)">
+                🚫 EXCLUIR PALABRA CLAVE
+            </label>
+
+            <div class="exclusion-panel" id="exclusionPanel">
+                <label for="palabrasExcluidas">Palabras a excluir:</label>
+                <input type="text" id="palabrasExcluidas" placeholder="Ej: XXL; XXXL; AZUL" title="Separar múltiples palabras con ;">
+                <span class="exclusion-hint">Separar con ;</span>
             </div>
         </div>
 
@@ -692,6 +838,22 @@
         statusDiv.className = 'status-badge error';
     }
 
+    // Toggle visual del label del filtro al activar/desactivar
+    function toggleFiltro(tipo, checkbox) {
+        if (tipo === 'cod8') {
+            document.getElementById('labelCod8').classList.toggle('active', checkbox.checked);
+        } else if (tipo === 'excluir') {
+            document.getElementById('labelExcluir').classList.toggle('active', checkbox.checked);
+            const panel = document.getElementById('exclusionPanel');
+            panel.classList.toggle('visible', checkbox.checked);
+            if (checkbox.checked) {
+                document.getElementById('palabrasExcluidas').focus();
+            } else {
+                document.getElementById('palabrasExcluidas').value = '';
+            }
+        }
+    }
+
     function filtrarProductos() {
         if (!productos || productos.length === 0) {
             alert("La base de datos aún no se ha cargado.");
@@ -704,6 +866,19 @@
         const marca = document.getElementById('marca').value.toUpperCase().trim();
         const cod = document.getElementById('codigo').value.toUpperCase().trim();
         const codAlt = document.getElementById('codAlt').value.toUpperCase().trim();
+
+        // Restricción 1: Solo código de 8 dígitos numéricos
+        const soloCod8 = document.getElementById('chkCod8').checked;
+
+        // Restricción 2: Palabras excluidas (separadas por ;)
+        const excluirActivo = document.getElementById('chkExcluir').checked;
+        const palabrasExcluidasRaw = document.getElementById('palabrasExcluidas').value;
+        const palabrasExcluidas = excluirActivo
+            ? palabrasExcluidasRaw
+                .split(';')
+                .map(p => p.toUpperCase().trim())
+                .filter(p => p.length > 0)
+            : [];
 
         resultadosActuales = productos.filter(p => {
             const rawNombre = obtenerValor(p, ['nombre', 'descripcion', 'descripción', 'detalle']);
@@ -723,7 +898,14 @@
             const matchCod = !cod || pCod.includes(cod);
             const matchCodAlt = !codAlt || pCodAlt.includes(codAlt);
 
-            return matchD1 && matchD2 && matchD3 && matchMarca && matchCod && matchCodAlt;
+            // Restricción 1: el código (formateado, sin espacios) debe tener exactamente 8 dígitos
+            const matchCod8 = !soloCod8 || /^\d{8}$/.test(formatearCodigo(rawCod).replace(/\s/g, ''));
+
+            // Restricción 2: ninguna palabra excluida debe aparecer en el nombre/descripción
+            const matchExcluir = palabrasExcluidas.length === 0
+                || !palabrasExcluidas.some(pe => nombre.includes(pe));
+
+            return matchD1 && matchD2 && matchD3 && matchMarca && matchCod && matchCodAlt && matchCod8 && matchExcluir;
         });
 
         mostrarResultados(resultadosActuales);
@@ -814,6 +996,15 @@
         document.getElementById('marca').value = '';
         document.getElementById('codigo').value = '';
         document.getElementById('codAlt').value = '';
+        // Limpiar restricciones
+        const chkCod8 = document.getElementById('chkCod8');
+        const chkExcluir = document.getElementById('chkExcluir');
+        chkCod8.checked = false;
+        chkExcluir.checked = false;
+        document.getElementById('labelCod8').classList.remove('active');
+        document.getElementById('labelExcluir').classList.remove('active');
+        document.getElementById('exclusionPanel').classList.remove('visible');
+        document.getElementById('palabrasExcluidas').value = '';
         resultadosActuales = [];
         document.getElementById('btnExport').disabled = true;
         document.getElementById('counter').innerText = 'Sin búsquedas activas';

@@ -639,10 +639,10 @@
         const keys = Object.keys(obj);
         
         for (let posible of nombresPosibles) {
-            const posibleLimpio = posible.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            const posibleLimpio = posible.toLowerCase().replace(/^\uFEFF/, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
             
             for (let key of keys) {
-                const keyLimpia = key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                const keyLimpia = key.toLowerCase().replace(/^\uFEFF/, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
                 if (keyLimpia === posibleLimpio || keyLimpia.includes(posibleLimpio)) {
                     const val = obj[key];
                     if (val !== undefined && val !== null) return String(val).trim();
@@ -673,8 +673,9 @@
     window.onload = async function() {
         const statusDiv = document.getElementById('status');
         const urls = [
-            'https://raw.githubusercontent.com/leandrocuadro/AltF2/main/productos.csv',
-            'https://cdn.jsdelivr.net/gh/leandrocuadro/AltF2@main/productos.csv',
+            'https://raw.githubusercontent.com/leandrocuadro/productos.csv/refs/heads/main/productos.csv',
+            'https://raw.githubusercontent.com/leandrocuadro/productos.csv/main/productos.csv',
+            'https://cdn.jsdelivr.net/gh/leandrocuadro/productos.csv@main/productos.csv',
             './productos.csv'
         ];
 
@@ -685,7 +686,7 @@
                 if (res.ok) {
                     const text = await res.text();
                     if (text && text.trim().length > 0) {
-                        csvText = text;
+                        csvText = text.replace(/^\uFEFF/, ''); // Eliminar BOM si está presente
                         break;
                     }
                 }
@@ -700,7 +701,8 @@
                 skipEmptyLines: true,
                 complete: function(results) {
                     if (results.data && results.data.length > 0) {
-                        productos = results.data;
+                        // Filtrar posibles filas completamente vacías
+                        productos = results.data.filter(p => Object.values(p).some(v => v && String(v).trim().length > 0));
                         statusDiv.innerHTML = `✅ ${productos.length.toLocaleString()} productos disponibles`;
                         statusDiv.className = 'status-badge success';
                     } else {

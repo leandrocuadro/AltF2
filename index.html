@@ -609,6 +609,129 @@
             font-style: italic;
         }
 
+        /* Controles de Paginación */
+        .page-indicator {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary);
+            background: var(--primary-light);
+            border: 1px solid var(--primary-border);
+            padding: 4px 12px;
+            border-radius: 9999px;
+            letter-spacing: 0.3px;
+        }
+
+        .pagination-footer {
+            padding: 16px 24px;
+            background: linear-gradient(to right, #ffffff, #f8fafc);
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .pagination-info {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 600;
+            flex-wrap: wrap;
+        }
+
+        .page-size-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-size-selector label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .page-size-selector select {
+            padding: 5px 10px;
+            border-radius: 8px;
+            border: 1.5px solid var(--border-color);
+            font-size: 13px;
+            font-family: var(--font-sans);
+            font-weight: 600;
+            background: #ffffff;
+            color: var(--text-main);
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .page-size-selector select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .pagination-nav {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            user-select: none;
+        }
+
+        .page-btn {
+            min-width: 36px;
+            height: 36px;
+            padding: 0 10px;
+            border-radius: 8px;
+            border: 1.5px solid var(--border-color);
+            background: #ffffff;
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+
+        .page-btn:hover:not(:disabled):not(.active) {
+            border-color: var(--primary);
+            color: var(--primary);
+            background-color: var(--primary-light);
+            transform: translateY(-1px);
+        }
+
+        .page-btn.active {
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+            color: #ffffff;
+            border-color: var(--primary);
+            box-shadow: 0 3px 8px var(--primary-glow);
+            cursor: default;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            border-color: var(--border-light);
+            background: #f8fafc;
+            color: var(--text-muted);
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .page-ellipsis {
+            min-width: 24px;
+            text-align: center;
+            color: var(--text-light);
+            font-weight: 700;
+            font-size: 14px;
+            user-select: none;
+        }
+
         /* Responsividad */
         @media (max-width: 640px) {
             body {
@@ -630,6 +753,28 @@
             button {
                 flex: 1;
                 justify-content: center;
+            }
+            .pagination-footer {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                padding: 14px 12px;
+            }
+            .pagination-info {
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+            .pagination-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 4px;
+            }
+            .page-btn {
+                min-width: 32px;
+                height: 32px;
+                padding: 0 6px;
+                font-size: 12px;
             }
         }
     </style>
@@ -710,6 +855,7 @@
     <div class="results-card">
         <div class="results-header">
             <span class="counter-text" id="counter">Sin búsquedas activas</span>
+            <span class="page-indicator" id="headerPageIndicator" style="display: none;"></span>
         </div>
 
         <div class="table-responsive">
@@ -729,6 +875,24 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="pagination-footer" id="paginationFooter" style="display: none;">
+            <div class="pagination-info">
+                <span id="paginationRange">Mostrando 0 de 0</span>
+                <div class="page-size-selector">
+                    <label for="pageSizeSelect">Por página:</label>
+                    <select id="pageSizeSelect" onchange="cambiarTamanoPagina(this.value)">
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+            </div>
+            <div class="pagination-nav" id="paginationNav">
+                <!-- Botones generados dinámicamente -->
+            </div>
+        </div>
     </div>
 
 </div>
@@ -736,6 +900,8 @@
 <script>
     let productos = [];
     let resultadosActuales = [];
+    let paginaActual = 1;
+    let tamanoPagina = 50;
 
     // Busca un valor en el objeto p probando varios nombres de columna (ignora mayúsculas y acentos)
     function obtenerValor(obj, nombresPosibles) {
@@ -908,6 +1074,7 @@
             return matchD1 && matchD2 && matchD3 && matchMarca && matchCod && matchCodAlt && matchCod8 && matchExcluir;
         });
 
+        paginaActual = 1;
         mostrarResultados(resultadosActuales);
     }
 
@@ -927,24 +1094,40 @@
     function mostrarResultados(lista) {
         const tbody = document.getElementById('resultadosBody');
         const btnExport = document.getElementById('btnExport');
+        const paginationFooter = document.getElementById('paginationFooter');
+        const headerPageIndicator = document.getElementById('headerPageIndicator');
         tbody.innerHTML = '';
 
         if (!lista || lista.length === 0) {
             tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No se encontraron productos que coincidan con la búsqueda.</td></tr>`;
             document.getElementById('counter').innerText = 'Resultados encontrados: 0';
             btnExport.disabled = true;
+            if (paginationFooter) paginationFooter.style.display = 'none';
+            if (headerPageIndicator) headerPageIndicator.style.display = 'none';
             return;
         }
 
         btnExport.disabled = false;
-        const maxResultados = 200;
-        const limite = Math.min(lista.length, maxResultados);
+        const totalItems = lista.length;
+        const totalPaginas = Math.ceil(totalItems / tamanoPagina);
+        
+        // Mantener paginaActual dentro de límites
+        if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+        if (paginaActual < 1) paginaActual = 1;
 
-        document.getElementById('counter').innerText = `Resultados encontrados: ${lista.length.toLocaleString()}` + 
-            (lista.length > maxResultados ? ` (Mostrando los primeros ${maxResultados})` : '');
+        const inicio = (paginaActual - 1) * tamanoPagina;
+        const fin = Math.min(inicio + tamanoPagina, totalItems);
+        const paginaItems = lista.slice(inicio, fin);
 
-        for (let i = 0; i < limite; i++) {
-            const p = lista[i];
+        document.getElementById('counter').innerText = `Resultados encontrados: ${totalItems.toLocaleString('es-AR')}`;
+        
+        if (headerPageIndicator) {
+            headerPageIndicator.innerText = `Pág. ${paginaActual} de ${totalPaginas}`;
+            headerPageIndicator.style.display = 'inline-block';
+        }
+
+        for (let i = 0; i < paginaItems.length; i++) {
+            const p = paginaItems[i];
             const rawCod = obtenerValor(p, ['código', 'codigo', 'cod']);
             const rawCodAlt = obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt']);
             const rawMarca = obtenerValor(p, ['marca']);
@@ -962,6 +1145,103 @@
             `;
             tbody.appendChild(tr);
         }
+
+        // Actualizar rango y controles de paginación
+        document.getElementById('paginationRange').innerText = 
+            `Mostrando ${(inicio + 1).toLocaleString('es-AR')} - ${fin.toLocaleString('es-AR')} de ${totalItems.toLocaleString('es-AR')}`;
+        
+        renderPaginacion(totalPaginas);
+        if (paginationFooter) paginationFooter.style.display = 'flex';
+    }
+
+    function renderPaginacion(totalPaginas) {
+        const nav = document.getElementById('paginationNav');
+        nav.innerHTML = '';
+
+        if (totalPaginas <= 1) {
+            return;
+        }
+
+        // Botón Primera «
+        const btnFirst = document.createElement('button');
+        btnFirst.className = 'page-btn';
+        btnFirst.innerHTML = '«';
+        btnFirst.title = 'Primera página';
+        btnFirst.disabled = paginaActual === 1;
+        btnFirst.onclick = () => irAPagina(1);
+        nav.appendChild(btnFirst);
+
+        // Botón Anterior ‹
+        const btnPrev = document.createElement('button');
+        btnPrev.className = 'page-btn';
+        btnPrev.innerHTML = '‹';
+        btnPrev.title = 'Página anterior';
+        btnPrev.disabled = paginaActual === 1;
+        btnPrev.onclick = () => irAPagina(paginaActual - 1);
+        nav.appendChild(btnPrev);
+
+        // Calcular números de páginas visibles con elipsis
+        const delta = 2; // páginas a cada lado de la actual
+        const paginas = [];
+
+        for (let i = 1; i <= totalPaginas; i++) {
+            if (i === 1 || i === totalPaginas || (i >= paginaActual - delta && i <= paginaActual + delta)) {
+                paginas.push(i);
+            }
+        }
+
+        let ultimoNumero = 0;
+        for (let p of paginas) {
+            if (ultimoNumero && p - ultimoNumero > 1) {
+                const elip = document.createElement('span');
+                elip.className = 'page-ellipsis';
+                elip.innerText = '…';
+                nav.appendChild(elip);
+            }
+
+            const btnPage = document.createElement('button');
+            btnPage.className = 'page-btn' + (p === paginaActual ? ' active' : '');
+            btnPage.innerText = p;
+            if (p !== paginaActual) {
+                btnPage.onclick = () => irAPagina(p);
+            }
+            nav.appendChild(btnPage);
+
+            ultimoNumero = p;
+        }
+
+        // Botón Siguiente ›
+        const btnNext = document.createElement('button');
+        btnNext.className = 'page-btn';
+        btnNext.innerHTML = '›';
+        btnNext.title = 'Página siguiente';
+        btnNext.disabled = paginaActual === totalPaginas;
+        btnNext.onclick = () => irAPagina(paginaActual + 1);
+        nav.appendChild(btnNext);
+
+        // Botón Última »
+        const btnLast = document.createElement('button');
+        btnLast.className = 'page-btn';
+        btnLast.innerHTML = '»';
+        btnLast.title = 'Última página';
+        btnLast.disabled = paginaActual === totalPaginas;
+        btnLast.onclick = () => irAPagina(totalPaginas);
+        nav.appendChild(btnLast);
+    }
+
+    function irAPagina(num) {
+        paginaActual = num;
+        mostrarResultados(resultadosActuales);
+        const resultsEl = document.querySelector('.results-card');
+        if (resultsEl) {
+            resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function cambiarTamanoPagina(nuevoTamano) {
+        tamanoPagina = parseInt(nuevoTamano, 10);
+        paginaActual = 1;
+        mostrarResultados(resultadosActuales);
     }
 
     function exportarExcel() {
@@ -1006,8 +1286,14 @@
         document.getElementById('exclusionPanel').classList.remove('visible');
         document.getElementById('palabrasExcluidas').value = '';
         resultadosActuales = [];
+        paginaActual = 1;
+        document.getElementById('pageSizeSelect').value = "50";
         document.getElementById('btnExport').disabled = true;
         document.getElementById('counter').innerText = 'Sin búsquedas activas';
+        const paginationFooter = document.getElementById('paginationFooter');
+        if (paginationFooter) paginationFooter.style.display = 'none';
+        const headerPageIndicator = document.getElementById('headerPageIndicator');
+        if (headerPageIndicator) headerPageIndicator.style.display = 'none';
         document.getElementById('resultadosBody').innerHTML = `<tr><td colspan="4" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td></tr>`;
     }
 </script>

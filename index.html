@@ -1,1397 +1,1302 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full bg-slate-50">
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Generador de Presupuestos</title>
-  <!-- Favicon: isotipo propio (documento + $) -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23185FA5'/%3E%3Crect x='20' y='14' width='24' height='30' rx='3' fill='white'/%3E%3Crect x='24' y='20' width='16' height='2.5' rx='1' fill='%23185FA5'/%3E%3Crect x='24' y='26' width='16' height='2.5' rx='1' fill='%23185FA5'/%3E%3Crect x='24' y='32' width='10' height='2.5' rx='1' fill='%23185FA5'/%3E%3Ccircle cx='40' cy='42' r='9' fill='%23185FA5' stroke='white' stroke-width='2'/%3E%3Ctext x='40' y='46' font-family='Arial' font-size='11' font-weight='bold' fill='white' text-anchor='middle'%3E%24%3C/text%3E%3C/svg%3E">
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Google Fonts Inter -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <!-- SheetJS for Excel Import/Export -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- jsPDF for PDF export -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-
-    /* Custom scrollbar for large tables */
-    .table-scroll::-webkit-scrollbar {
-      height: 8px;
-      width: 8px;
-    }
-    .table-scroll::-webkit-scrollbar-track {
-      background: #f1f5f9;
-      border-radius: 4px;
-    }
-    .table-scroll::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    .table-scroll::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
-
-    /* Table input adjustments */
-    .cell-input {
-      width: 100%;
-      padding: 0.35rem 0.4rem;
-      border: 1px solid #e2e8f0;
-      border-radius: 0.375rem;
-      font-size: 0.8125rem;
-      transition: all 0.15s ease-in-out;
-      background-color: #ffffff;
-    }
-    .cell-input:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-    }
-
-    /* Computed Readonly inputs */
-    .cell-readonly {
-      background-color: #f0fdf4 !important;
-      color: #166534 !important;
-      font-weight: 600;
-      border-color: #bbf7d0 !important;
-    }
-
-    .cell-readonly-highlight {
-      background-color: #eff6ff !important;
-      color: #1e40af !important;
-      font-weight: 700;
-      border-color: #bfdbfe !important;
-    }
-
-    /* Print styling rules */
-    @media print {
-      .no-print {
-        display: none !important;
-      }
-      body {
-        background: white;
-        padding: 0;
-      }
-      .shadow-card {
-        box-shadow: none !important;
-        border: 1px solid #ccc;
-      }
-      .cell-input {
-        border: none;
-        background: transparent !important;
-      }
-    }
-
-    /* Micro-interacciones */
-    button:not(:disabled) {
-      transition: transform 0.12s ease-out, background-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
-    }
-    button:not(:disabled):active {
-      transform: scale(0.96);
-    }
-
-    #tbodyPresupuesto tr {
-      transition: background-color 0.2s ease;
-    }
-
-    .dropdown-menu {
-      opacity: 0;
-      transform: translateY(-6px) scale(0.98);
-      pointer-events: none;
-      transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-      transform-origin: top left;
-    }
-    .dropdown-menu.dropdown-open {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      pointer-events: auto;
-    }
-
-    #toast {
-      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    input, select {
-      transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
-    }
-  </style>
-</head>
-<body class="min-h-full flex flex-col text-slate-800">
-
-  <!-- Top Navigation / Header -->
-  <header class="bg-slate-900 text-white shadow-lg no-print">
-    <div class="max-w-[100%] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
-      <div class="flex items-center space-x-4">
-        <div class="shrink-0 w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shadow-md" aria-hidden="true">
-          <svg viewBox="0 0 64 64" class="w-7 h-7">
-            <rect x="20" y="14" width="24" height="30" rx="3" fill="white"/>
-            <rect x="24" y="20" width="16" height="2.5" rx="1" fill="#185FA5"/>
-            <rect x="24" y="26" width="16" height="2.5" rx="1" fill="#185FA5"/>
-            <rect x="24" y="32" width="10" height="2.5" rx="1" fill="#185FA5"/>
-            <circle cx="40" cy="42" r="9" fill="#185FA5" stroke="white" stroke-width="2"/>
-            <text x="40" y="46" font-family="Arial" font-size="11" font-weight="bold" fill="white" text-anchor="middle">$</text>
-          </svg>
-        </div>
-        <div>
-          <h1 class="text-xl font-bold tracking-tight text-white">Generador de Presupuestos</h1>
-          <p class="text-xs text-slate-400">Cálculo en cascada, márgenes, autocompletado desde GitHub y carga masiva mediante Excel</p>
-        </div>
-      </div>
-      <div class="flex items-center flex-wrap gap-2.5">
-        <button onclick="cargarDatosEjemplo()" class="bg-slate-600 hover:bg-slate-500 text-white px-3.5 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2 shadow-sm">
-          <i class="fa-solid fa-vial"></i> Cargar Datos de Prueba
-        </button>
-
-        <!-- Menú desplegable: Importar -->
-        <div class="relative dropdown-wrapper">
-          <button type="button" onclick="toggleDropdown('dropdownImportar')" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2 shadow-sm">
-            <i class="fa-solid fa-file-import"></i> Importar <i class="fa-solid fa-chevron-down text-[9px] opacity-80"></i>
-          </button>
-          <div id="dropdownImportar" class="dropdown-menu absolute left-0 mt-1.5 w-60 bg-white rounded-lg shadow-lg border border-slate-200 z-50 overflow-hidden">
-            <label class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 cursor-pointer transition-colors">
-              <i class="fa-solid fa-file-excel text-blue-600 w-4 text-center"></i> Importar Excel / CSV
-              <input type="file" id="inputExcel" accept=".xlsx, .xls, .csv" onchange="importarExcel(event)" class="hidden">
-            </label>
-            <label class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 cursor-pointer transition-colors border-t border-slate-100" title="Cargar un respaldo JSON previamente guardado">
-              <i class="fa-solid fa-file-import text-blue-600 w-4 text-center"></i> Cargar Backup JSON
-              <input type="file" id="inputBackupJSON" accept=".json,application/json" onchange="cargarBackupJSON(event)" class="hidden">
-            </label>
-          </div>
-        </div>
-
-        <!-- Menú desplegable: Exportar -->
-        <div class="relative dropdown-wrapper">
-          <button type="button" onclick="toggleDropdown('dropdownExportar')" class="bg-teal-600 hover:bg-teal-500 text-white px-3.5 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2 shadow-sm">
-            <i class="fa-solid fa-file-export"></i> Exportar <i class="fa-solid fa-chevron-down text-[9px] opacity-80"></i>
-          </button>
-          <div id="dropdownExportar" class="dropdown-menu absolute left-0 mt-1.5 w-60 bg-white rounded-lg shadow-lg border border-slate-200 z-50 overflow-hidden">
-            <button type="button" onclick="guardarBackupJSON()" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-teal-50 transition-colors text-left" title="Guardar respaldo completo en archivo JSON">
-              <i class="fa-solid fa-floppy-disk text-teal-600 w-4 text-center"></i> Respaldo JSON
-            </button>
-            <button type="button" onclick="exportarPDF()" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-teal-50 transition-colors text-left border-t border-slate-100" title="Generar PDF del presupuesto para enviar al cliente">
-              <i class="fa-solid fa-file-pdf text-teal-600 w-4 text-center"></i> Exportar PDF
-            </button>
-            <button type="button" onclick="exportarCSV()" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-teal-50 transition-colors text-left border-t border-slate-100">
-              <i class="fa-solid fa-file-csv text-teal-600 w-4 text-center"></i> Exportar CSV
-            </button>
-            <button type="button" onclick="exportarPlantillaMylogic()" class="hidden w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-teal-50 transition-colors text-left border-t border-slate-100" title="Exportar hoja Excel en formato Mylogic">
-              <i class="fa-solid fa-file-export text-teal-600 w-4 text-center"></i> Plantilla Mylogic
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- Main Container -->
-  <main class="flex-grow max-w-[100%] w-full px-4 sm:px-6 lg:px-8 py-6">
-
-    <!-- Presupuesto Metadata Header -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6 shadow-card">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Cliente / Empresa</label>
-          <input type="text" id="metaCliente" placeholder="Ej: Distribuidora Lopez S.A." class="w-full text-sm border-slate-300 rounded-lg p-2 border focus:ring-2 focus:ring-blue-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Nº Presupuesto</label>
-          <input type="text" id="metaNumero" value="PRES-2026-001" class="w-full text-sm border-slate-300 rounded-lg p-2 border focus:ring-2 focus:ring-blue-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Fecha de Emisión</label>
-          <input type="date" id="metaFecha" class="w-full text-sm border-slate-300 rounded-lg p-2 border focus:ring-2 focus:ring-blue-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Moneda del Presupuesto</label>
-          <select id="metaMoneda" onchange="actualizarMoneda()" class="w-full text-sm border-slate-300 rounded-lg p-2 border focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-            <option value="$">PESOS ($)</option>
-            <option value="USD">DÓLAR BNA (USD)</option>
-            <option value="DIVISA">DÓLAR DIVISA</option>
-            <option value="EUR">EUROS (€)</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="mt-4 pt-4 border-t border-slate-100">
-        <div class="flex items-center justify-between mb-2">
-          <label class="text-xs font-semibold text-slate-600 uppercase tracking-wider">Cotizaciones de Referencia ($ por unidad)</label>
-          <button type="button" onclick="actualizarCotizaciones()" id="btnActualizarTC" class="shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5" title="Buscar automáticamente las 3 cotizaciones (fuente: BNA / DolarAPI)">
-            <i class="fa-solid fa-rotate" id="iconoActualizarTC"></i> Actualizar Cotizaciones
-          </button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label class="block text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Dólar BNA (billete)</label>
-            <input type="number" id="metaTCBNA" value="1000" min="0" step="0.01" onchange="actualizarTipoCambio()" class="w-full text-sm border-slate-300 rounded-lg p-2 border focus:ring-2 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Dólar Divisa (mayorista)</label>
-            <input type="number" id="metaTCDivisa" value="1000" min="0" step="0.01" onchange="actualizarTipoCambio()" class="w-full text-sm border-slate-300 rounded-lg p-2 border focus:ring-2 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Euro</label>
-            <input type="number" id="metaTCEUR" value="1150" min="0" step="0.01" onchange="actualizarTipoCambio()" class="w-full text-sm border-slate-300 rounded-lg p-2 border focus:ring-2 focus:ring-blue-500 outline-none">
-          </div>
-        </div>
-        <p id="infoCotizacionBNA" class="text-[10px] text-slate-500 mt-1.5"></p>
-      </div>
-    </div>
-
-    <!-- Toolbar for Table -->
-    <div class="flex flex-wrap justify-between items-center gap-3 mb-4 no-print">
-      <div class="flex items-center gap-2">
-        <button onclick="agregarFila()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-4 py-2 rounded-lg flex items-center gap-2 transition shadow-sm">
-          <i class="fa-solid fa-plus"></i> Agregar Ítem
-        </button>
-        <button onclick="agregarMultiplesFilas(5)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs px-3 py-2 rounded-lg border border-slate-300 transition">
-          +5 Filas
-        </button>
-      </div>
-
-      <!-- Banner Informativo de Plantilla Reducida y GitHub -->
-      <div class="hidden md:flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg text-xs">
-        <i class="fa-solid fa-circle-info"></i>
-        <span><strong>Autocompletado activo:</strong> Al ingresar el código en la tabla, el Detalle se trae automáticamente desde tu base de GitHub.</span>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <button onclick="limpiarFiltros()" class="bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium text-xs px-3 py-2 rounded-lg border border-amber-200 transition flex items-center gap-1.5" title="Limpiar todos los filtros aplicados">
-          <i class="fa-solid fa-filter-circle-xmark"></i> Limpiar Filtros
-        </button>
-        <button onclick="limpiarTodo()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-medium text-xs px-3 py-2 rounded-lg border border-rose-200 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-trash"></i> Limpiar Todo
-        </button>
-      </div>
-    </div>
-
-    <!-- Barra de Reemplazo Global -->
-    <div class="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-4 flex flex-wrap items-center gap-2 no-print">
-      <span class="text-xs font-bold text-purple-800 flex items-center gap-1.5 mr-1">
-        <i class="fa-solid fa-wand-magic-sparkles"></i> Reemplazo Global:
-      </span>
-      <select id="globalCampo" onchange="actualizarTipoInputGlobal()" class="text-xs border-purple-300 rounded-lg p-2 border focus:ring-2 focus:ring-purple-500 outline-none bg-white">
-        <option value="col-d1">Descuento 1</option>
-        <option value="col-d2">Descuento 2</option>
-        <option value="col-d3">Descuento 3</option>
-        <option value="col-d4">Descuento 4</option>
-        <option value="col-d5">Descuento 5</option>
-        <option value="col-margen">Margen</option>
-        <option value="col-origen">Proveedor</option>
-      </select>
-      <input type="number" id="globalValor" step="0.01" placeholder="Valor %" class="text-xs border-purple-300 rounded-lg p-2 border w-24 focus:ring-2 focus:ring-purple-500 outline-none">
-      <button onclick="aplicarReemplazoGlobal()" class="bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs px-3.5 py-2 rounded-lg transition flex items-center gap-1.5" title="Aplica el valor solo a las filas visibles según los filtros activos (ej: filtrando por Origen)">
-        <i class="fa-solid fa-check"></i> Aplicar a filas filtradas
-      </button>
-      <button id="btnDeshacerGlobal" onclick="deshacerReemplazoGlobal()" class="hidden bg-slate-600 hover:bg-slate-500 text-white font-medium text-xs px-3.5 py-2 rounded-lg transition flex items-center gap-1.5" title="Restaura los valores previos a la última aplicación de reemplazo global">
-        <i class="fa-solid fa-rotate-left"></i> Deshacer
-      </button>
-      <span class="text-[11px] text-purple-700 italic">Filtrá primero por Origen (u otra columna) arriba en la tabla, y luego aplicá el valor solo a esas filas visibles.</span>
-    </div>
-
-    <!-- Table Container -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden shadow-card">
-      <div class="overflow-x-auto table-scroll">
-        <table id="tablaPresupuesto" class="w-full text-left border-collapse min-w-[1850px]">
-          <thead>
-            <tr class="bg-slate-100 text-slate-700 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-300">
-              <th class="p-2.5 text-center w-10 no-print">#</th>
-              <th class="p-2.5 w-16 text-center">N° Item</th>
-              <th class="p-2.5 w-20 text-center">1. Cantidad</th>
-              <th class="p-2.5 w-28">2. Código</th>
-              <th class="p-2.5 w-64">3. Detalle Artículo</th>
-              <th class="p-2.5 w-40">4. Observaciones</th>
-              <th class="p-2.5 w-32 text-right">5. Precio Lista Prov.</th>
-              <th class="p-2.5 w-20 text-center">Moneda Costo</th>
-              <th class="p-2.5 w-20 text-center">6. Desc 1 %</th>
-              <th class="p-2.5 w-20 text-center">7. Desc 2 %</th>
-              <th class="p-2.5 w-20 text-center">8. Desc 3 %</th>
-              <th class="p-2.5 w-20 text-center">9. Desc 4 %</th>
-              <th class="p-2.5 w-20 text-center">10. Desc 5 %</th>
-              <th class="p-2.5 w-32 text-right bg-emerald-100 text-emerald-800">11. Costo Neto Unit.</th>
-              <th class="p-2.5 w-24 text-center">12. Margen %</th>
-              <th class="p-2.5 w-32 text-right bg-emerald-100 text-emerald-800">13. Precio Venta Unit.</th>
-              <th class="p-2.5 w-36 text-right bg-emerald-100 text-emerald-800">14. Total Precio Venta</th>
-              <th class="p-2.5 w-28">15. Proveedor</th>
-              <th class="p-2.5 w-28">16. Código Cliente A</th>
-              <th class="p-2.5 w-28">17. Código Cliente B</th>
-              <th class="p-2.5 w-10 text-center no-print">Acción</th>
-            </tr>
-            <!-- Fila de Filtros por Columna -->
-            <tr id="filaFiltros" class="bg-slate-50 text-slate-600 text-[11px] no-print border-b border-slate-200">
-              <td class="p-1 text-center text-slate-400"><i class="fa-solid fa-filter text-xs"></i></td>
-              <td class="p-1"><input type="text" data-col="col-nroitem" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500 text-center"></td>
-              <td class="p-1"><input type="text" data-col="col-cantidad" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1"><input type="text" data-col="col-codigo" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1"><input type="text" data-col="col-detalle" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1"><input type="text" data-col="col-obs" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1"><input type="text" data-col="col-precio" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1"><input type="text" data-col="col-monedafila" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500 text-center"></td>
-              <td class="p-1"><input type="text" data-col="col-d1" oninput="filtrarTabla()" placeholder="%" class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500 text-center"></td>
-              <td class="p-1"><input type="text" data-col="col-d2" oninput="filtrarTabla()" placeholder="%" class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500 text-center"></td>
-              <td class="p-1"><input type="text" data-col="col-d3" oninput="filtrarTabla()" placeholder="%" class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500 text-center"></td>
-              <td class="p-1"><input type="text" data-col="col-d4" oninput="filtrarTabla()" placeholder="%" class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500 text-center"></td>
-              <td class="p-1"><input type="text" data-col="col-d5" oninput="filtrarTabla()" placeholder="%" class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500 text-center"></td>
-              <td class="p-1"><input type="text" data-col="col-costo" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1"><input type="text" data-col="col-margen" oninput="filtrarTabla()" placeholder="%" class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500 text-center"></td>
-              <td class="p-1"><input type="text" data-col="col-venta" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1"><input type="text" data-col="col-totventa" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1"><input type="text" data-col="col-origen" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1"><input type="text" data-col="col-codcliente" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1"><input type="text" data-col="col-codcliente2" oninput="filtrarTabla()" placeholder="Filtrar..." class="w-full text-xs px-1.5 py-1 rounded bg-white text-slate-800 border border-slate-300 focus:outline-none focus:border-blue-500"></td>
-              <td class="p-1 no-print"></td>
-            </tr>
-          </thead>
-          <tbody id="tbodyPresupuesto" class="divide-y divide-slate-200 text-xs">
-            <!-- Rows injected by JavaScript -->
-          </tbody>
-
-          <tfoot>
-            <tr class="bg-slate-100 text-slate-800 font-bold text-xs border-t-2 border-slate-300">
-              <td class="p-3 text-center no-print">∑</td>
-              <td id="totalCantidad" class="p-3 text-center text-indigo-700 font-mono">0</td>
-              <td colspan="3" class="p-3 text-right uppercase tracking-wider">Totales Consolidados:</td>
-              <td id="totalPrecioLista" class="p-3 text-right font-mono">$ 0.00</td>
-              <td colspan="5" class="p-3 text-center text-slate-400 font-normal text-[10px]">(Aplica descuento en cascada)</td>
-              <td id="totalCostoNetoUnit" class="p-3 text-right text-emerald-800 font-mono text-xs bg-emerald-50">$ 0.00</td>
-              <td id="promedioMargen" class="p-3 text-center text-blue-800 font-mono bg-blue-50">0.0%</td>
-              <td id="totalPrecioVentaUnit" class="p-3 text-right text-indigo-800 font-mono text-xs bg-indigo-50">$ 0.00</td>
-              <td id="totalPrecioVentaFila" class="p-3 text-right text-blue-900 font-mono text-base bg-blue-100">$ 0.00</td>
-              <td colspan="2" class="p-3"></td>
-              <td class="p-3 no-print"></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
-
-    <!-- Executive KPI Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between shadow-card">
-        <div>
-          <p class="text-xs font-medium text-slate-500 uppercase">Unidades Totales</p>
-          <p id="kpiUnidades" class="text-2xl font-bold text-slate-800 mt-1">0</p>
-        </div>
-        <div class="p-3 bg-blue-50 text-blue-600 rounded-lg">
-          <i class="fa-solid fa-cubes text-xl"></i>
-        </div>
-      </div>
-
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between shadow-card">
-        <div>
-          <p class="text-xs font-medium text-slate-500 uppercase">Costo Neto Total</p>
-          <p id="kpiCosto" class="text-2xl font-bold text-emerald-600 mt-1">$ 0.00</p>
-        </div>
-        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
-          <i class="fa-solid fa-coins text-xl"></i>
-        </div>
-      </div>
-
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between shadow-card">
-        <div>
-          <p class="text-xs font-medium text-slate-500 uppercase">Precio Venta Total</p>
-          <p id="kpiVenta" class="text-2xl font-bold text-indigo-600 mt-1">$ 0.00</p>
-        </div>
-        <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
-          <i class="fa-solid fa-receipt text-xl"></i>
-        </div>
-      </div>
-
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between shadow-card">
-        <div>
-          <p class="text-xs font-medium text-slate-500 uppercase">Ganancia Estimada</p>
-          <p id="kpiGanancia" class="text-2xl font-bold text-teal-600 mt-1">$ 0.00</p>
-        </div>
-        <div class="p-3 bg-teal-50 text-teal-600 rounded-lg">
-          <i class="fa-solid fa-chart-line text-xl"></i>
-        </div>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- Notification Toast Modal -->
-  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 flex items-center gap-3 z-50 border border-slate-700">
-    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
-    <span id="toastMessage" class="text-xs font-medium">Mensaje de notificación</span>
-  </div>
-
-  <!-- JavaScript Logic -->
-  <script>
-    let monedaActual = '$';
-    let mapaProductosGitHub = {}; // Mapa para almacenar { "CODIGO": "Nombre" }
-
-    // Conexión y descarga de la Base de Datos desde GitHub
-    async function cargarProductosGitHub() {
-      const urlCSV = 'https://raw.githubusercontent.com/leandrocuadro/productos.csv/refs/heads/main/productos.csv';
-      try {
-        const respuesta = await fetch(urlCSV);
-        if (!respuesta.ok) throw new Error('No se pudo descargar el archivo CSV');
-        const texto = await respuesta.text();
-
-        const lineas = texto.split(/\r\n|\n/);
-        if (lineas.length === 0) return;
-
-        // Limpiar encabezados
-        const encabezados = lineas[0].split(';').map(e => e.replace(/"/g, '').trim().toLowerCase());
-        
-        // Identificar índices de las columnas "Código" y "Nombre"
-        const idxCodigo = encabezados.findIndex(h => h.includes('código') || h.includes('codigo'));
-        const idxNombre = encabezados.findIndex(h => h === 'nombre');
-
-        if (idxCodigo === -1 || idxNombre === -1) {
-          console.warn("No se encontraron las columnas 'Código' o 'Nombre' en el CSV.");
-          return;
-        }
-
-        for (let i = 1; i < lineas.length; i++) {
-          if (!lineas[i].trim()) continue;
-          const columnas = lineas[i].split(';').map(c => c.replace(/"/g, '').trim());
-          if (columnas[idxCodigo] && columnas[idxNombre]) {
-            const codigo = columnas[idxCodigo].toUpperCase();
-            const nombre = columnas[idxNombre];
-            mapaProductosGitHub[codigo] = nombre;
-          }
-        }
-        
-        mostrarToast("Base de datos de productos sincronizada desde GitHub", "info");
-      } catch (error) {
-        console.error("Error al cargar la base de datos de GitHub:", error);
-      }
-    }
-
-    function toggleDropdown(id) {
-      document.querySelectorAll('.dropdown-menu').forEach(el => {
-        if (el.id !== id) el.classList.remove('dropdown-open');
-      });
-      document.getElementById(id).classList.toggle('dropdown-open');
-    }
-
-    document.addEventListener('click', function(e) {
-      if (!e.target.closest('.dropdown-wrapper')) {
-        document.querySelectorAll('.dropdown-menu').forEach(el => el.classList.remove('dropdown-open'));
-      }
-    });
-
-    let tipoCambioBNA = 1000;
-    let tipoCambioDivisa = 1000;
-    let tipoCambioEUR = 1150;
-
-    document.getElementById('metaFecha').valueAsDate = new Date();
-
-    let toastTimeoutId = null;
-
-    function mostrarToast(mensaje, tipo = 'exito') {
-      const toast = document.getElementById('toast');
-      const toastMessage = document.getElementById('toastMessage');
-      const toastIcon = document.getElementById('toastIcon');
-
-      toastMessage.innerText = mensaje;
-      if (tipo === 'exito') {
-        toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
-      } else if (tipo === 'info') {
-        toastIcon.className = "fa-solid fa-circle-info text-blue-400 text-lg";
-      } else {
-        toastIcon.className = "fa-solid fa-triangle-exclamation text-rose-400 text-lg";
-      }
-
-      if (toastTimeoutId) clearTimeout(toastTimeoutId);
-
-      toast.classList.remove('translate-y-20', 'opacity-0');
-      toast.classList.add('translate-y-0', 'opacity-100');
-
-      toastTimeoutId = setTimeout(() => {
-        toast.classList.remove('translate-y-0', 'opacity-100');
-        toast.classList.add('translate-y-20', 'opacity-0');
-        toastTimeoutId = null;
-      }, 3500);
-    }
-
-    function actualizarMoneda() {
-      monedaActual = document.getElementById('metaMoneda').value;
-      recalcularPresupuestoCompleto();
-    }
-
-    function actualizarTipoCambio() {
-      tipoCambioBNA = parseFloat(document.getElementById('metaTCBNA').value) || 0;
-      tipoCambioDivisa = parseFloat(document.getElementById('metaTCDivisa').value) || 0;
-      tipoCambioEUR = parseFloat(document.getElementById('metaTCEUR').value) || 0;
-      recalcularPresupuestoCompleto();
-    }
-
-    async function actualizarCotizaciones() {
-      const btn = document.getElementById('btnActualizarTC');
-      const icono = document.getElementById('iconoActualizarTC');
-      const info = document.getElementById('infoCotizacionBNA');
-
-      btn.disabled = true;
-      icono.classList.add('fa-spin');
-      info.textContent = 'Consultando cotizaciones (BNA, Divisa, Euro)...';
-      info.className = 'text-[10px] text-slate-500 mt-1.5';
-
-      const resultados = await Promise.allSettled([
-        fetch('https://dolar-bna.vercel.app/api/cotizacion').then(r => {
-          if (!r.ok) throw new Error('BNA no disponible');
-          return r.json();
-        }),
-        fetch('https://dolarapi.com/v1/dolares/mayorista').then(r => {
-          if (!r.ok) throw new Error('Divisa no disponible');
-          return r.json();
-        }),
-        fetch('https://dolarapi.com/v1/cotizaciones/eur').then(r => {
-          if (!r.ok) throw new Error('Euro no disponible');
-          return r.json();
-        })
-      ]);
-
-      const [resBNA, resDivisa, resEUR] = resultados;
-      const partesOk = [];
-      const partesError = [];
-
-      if (resBNA.status === 'fulfilled' && typeof resBNA.value.venta === 'number') {
-        document.getElementById('metaTCBNA').value = resBNA.value.venta;
-        tipoCambioBNA = resBNA.value.venta;
-        partesOk.push(`BNA $${resBNA.value.venta}`);
-      } else {
-        partesError.push('BNA');
-      }
-
-      if (resDivisa.status === 'fulfilled' && typeof resDivisa.value.venta === 'number') {
-        document.getElementById('metaTCDivisa').value = resDivisa.value.venta;
-        tipoCambioDivisa = resDivisa.value.venta;
-        partesOk.push(`Divisa $${resDivisa.value.venta}`);
-      } else {
-        partesError.push('Divisa');
-      }
-
-      if (resEUR.status === 'fulfilled' && typeof resEUR.value.venta === 'number') {
-        document.getElementById('metaTCEUR').value = resEUR.value.venta;
-        tipoCambioEUR = resEUR.value.venta;
-        partesOk.push(`Euro $${resEUR.value.venta}`);
-      } else {
-        partesError.push('Euro');
-      }
-
-      recalcularPresupuestoCompleto();
-
-      const hora = new Date().toLocaleString('es-AR');
-      if (partesOk.length > 0) {
-        info.textContent = `${partesOk.join(' · ')} · Actualizado: ${hora}` + (partesError.length > 0 ? ` (No se pudo obtener: ${partesError.join(', ')})` : '');
-        info.className = partesError.length > 0 ? 'text-[10px] text-amber-600 mt-1.5' : 'text-[10px] text-emerald-600 mt-1.5 font-medium';
-        mostrarToast(partesError.length > 0 ? `Se actualizaron ${partesOk.length} de 3 cotizaciones.` : "Las 3 cotizaciones se actualizaron correctamente.", partesError.length > 0 ? "alerta" : "exito");
-      } else {
-        info.textContent = 'No se pudo obtener ninguna cotización. Verificá tu conexión o ingresá los valores manualmente.';
-        info.className = 'text-[10px] text-rose-600 mt-1.5';
-        mostrarToast("No se pudo actualizar ninguna cotización.", "alerta");
-      }
-
-      btn.disabled = false;
-      icono.classList.remove('fa-spin');
-    }
-
-    function obtenerTasaEnPesos(codigoMoneda) {
-      switch (codigoMoneda) {
-        case '$': return 1;
-        case 'USD': return tipoCambioBNA;
-        case 'DIVISA': return tipoCambioDivisa;
-        case 'EUR': return tipoCambioEUR;
-        default: return 1;
-      }
-    }
-
-    function obtenerSimboloMoneda(codigoMoneda) {
-      switch (codigoMoneda) {
-        case '$': return '$';
-        case 'USD': return 'U$S';
-        case 'DIVISA': return 'U$S Div.';
-        case 'EUR': return '€';
-        default: return codigoMoneda;
-      }
-    }
-
-    function agregarFila(datos = null) {
-      const tbody = document.getElementById('tbodyPresupuesto');
-      const numFila = tbody.children.length + 1;
-      const tr = document.createElement('tr');
-      tr.className = "hover:bg-slate-50/80 transition-colors";
-
-      tr.innerHTML = `
-        <td class="p-2 text-center text-slate-400 font-mono text-[11px] row-index no-print">${numFila}</td>
-        <td class="p-1.5"><input type="text" class="cell-input text-center font-bold col-nroitem" placeholder="Ej: 1" value="${datos && datos.nroItem !== undefined ? datos.nroItem : ''}"></td>
-        <td class="p-1.5"><input type="number" min="1" step="1" class="cell-input text-center font-bold col-cantidad" placeholder="1" value="${datos && datos.cantidad !== undefined ? datos.cantidad : 1}"></td>
-        <td class="p-1.5"><input type="text" class="cell-input col-codigo" placeholder="Ej: ART-101" value="${datos ? datos.codigo : ''}"></td>
-        <td class="p-1.5"><input type="text" class="cell-input col-detalle" placeholder="Descripción del artículo..." value="${datos ? datos.detalle : ''}"></td>
-        <td class="p-1.5"><input type="text" class="cell-input col-obs" placeholder="Notas..." value="${datos ? datos.obs : ''}"></td>
-        <td class="p-1.5"><input type="number" step="0.01" min="0" class="cell-input text-right font-mono col-precio" placeholder="0.00" value="${datos ? datos.precio : ''}"></td>
-        <td class="p-1.5">
-          <select class="cell-input text-center col-monedafila" onchange="calcularFila(this.closest('tr')); calcularTotalesGenerales();">
-            <option value="$" ${(!datos || !datos.monedaFila || datos.monedaFila === '$') ? 'selected' : ''}>$ (ARS)</option>
-            <option value="USD" ${(datos && datos.monedaFila === 'USD') ? 'selected' : ''}>U$S BNA</option>
-            <option value="DIVISA" ${(datos && datos.monedaFila === 'DIVISA') ? 'selected' : ''}>U$S Divisa</option>
-            <option value="EUR" ${(datos && datos.monedaFila === 'EUR') ? 'selected' : ''}>€ Euro</option>
-          </select>
-        </td>
-        <td class="p-1.5"><input type="number" step="0.01" min="0" max="100" class="cell-input text-center font-mono col-d1" placeholder="0" value="${datos ? datos.d1 : ''}"></td>
-        <td class="p-1.5"><input type="number" step="0.01" min="0" max="100" class="cell-input text-center font-mono col-d2" placeholder="0" value="${datos ? datos.d2 : ''}"></td>
-        <td class="p-1.5"><input type="number" step="0.01" min="0" max="100" class="cell-input text-center font-mono col-d3" placeholder="0" value="${datos ? datos.d3 : ''}"></td>
-        <td class="p-1.5"><input type="number" step="0.01" min="0" max="100" class="cell-input text-center font-mono col-d4" placeholder="0" value="${datos ? datos.d4 : ''}"></td>
-        <td class="p-1.5"><input type="number" step="0.01" min="0" max="100" class="cell-input text-center font-mono col-d5" placeholder="0" value="${datos ? datos.d5 : ''}"></td>
-        <td class="p-1.5"><input type="text" readonly class="cell-input text-right font-mono cell-readonly col-costo" value="0.00"></td>
-        <td class="p-1.5"><input type="number" step="0.01" min="0" class="cell-input text-center font-mono col-margen" placeholder="0" value="${datos ? datos.margen : ''}"></td>
-        <td class="p-1.5"><input type="text" readonly class="cell-input text-right font-mono cell-readonly col-venta" value="0.00"></td>
-        <td class="p-1.5"><input type="text" readonly class="cell-input text-right font-mono cell-readonly-highlight col-totventa" value="0.00"></td>
-        <td class="p-1.5"><input type="text" class="cell-input col-origen" placeholder="Nac./Imp." value="${datos ? datos.origen : ''}"></td>
-        <td class="p-1.5"><input type="text" class="cell-input col-codcliente" placeholder="Ej: CLI-99" value="${datos ? datos.codCliente : ''}"></td>
-        <td class="p-1.5"><input type="text" class="cell-input col-codcliente2" placeholder="Ej: CLI-99" value="${datos ? datos.codCliente2 : ''}"></td>
-        <td class="p-1.5 text-center no-print">
-          <button onclick="eliminarFila(this)" class="text-slate-400 hover:text-rose-600 transition-colors p-1" title="Eliminar fila">
-            <i class="fa-solid fa-trash-can"></i>
-          </button>
-        </td>
-      `;
-
-      // Event Listeners para cálculo automático
-      const inputs = tr.querySelectorAll('input');
-      inputs.forEach(input => {
-        input.addEventListener('input', () => {
-          calcularFila(tr);
-          calcularTotalesGenerales();
-        });
-      });
-
-      // Event Listener para autocompletar o limpiar Detalle según el código
-      const inputCodigo = tr.querySelector('.col-codigo');
-      const inputDetalle = tr.querySelector('.col-detalle');
-      if (inputCodigo && inputDetalle) {
-        inputCodigo.addEventListener('input', function() {
-          const codigoBuscado = this.value.trim().toUpperCase();
-          if (mapaProductosGitHub[codigoBuscado]) {
-            inputDetalle.value = mapaProductosGitHub[codigoBuscado];
-          } else {
-            inputDetalle.value = ""; // Se limpia para mostrar la ayuda visual
-          }
-        });
-      }
-
-      tbody.appendChild(tr);
-
-      if (datos) {
-        calcularFila(tr);
-      }
-
-      actualizarIndices();
-    }
-
-    function agregarMultiplesFilas(cantidad) {
-      for (let i = 0; i < cantidad; i++) {
-        agregarFila();
-      }
-    }
-
-    function eliminarFila(btn) {
-      const tr = btn.closest('tr');
-      tr.remove();
-      actualizarIndices();
-      calcularTotalesGenerales();
-    }
-
-    function actualizarIndices() {
-      const filas = document.querySelectorAll('#tbodyPresupuesto tr');
-      filas.forEach((tr, index) => {
-        const tdIdx = tr.querySelector('.row-index');
-        if (tdIdx) tdIdx.innerText = index + 1;
-      });
-    }
-
-    function calcularFila(tr) {
-      const cantidad = parseFloat(tr.querySelector('.col-cantidad').value) || 0;
-      let precioLista = parseFloat(tr.querySelector('.col-precio').value) || 0;
-      const monedaFilaEl = tr.querySelector('.col-monedafila');
-      const monedaFila = monedaFilaEl ? monedaFilaEl.value : '$';
-
-      if (monedaFila !== monedaActual) {
-        const tasaOrigen = obtenerTasaEnPesos(monedaFila);
-        const tasaDestino = obtenerTasaEnPesos(monedaActual);
-        if (tasaDestino > 0) {
-          precioLista = (precioLista * tasaOrigen) / tasaDestino;
-        }
-      }
-
-      const d1 = parseFloat(tr.querySelector('.col-d1').value) || 0;
-      const d2 = parseFloat(tr.querySelector('.col-d2').value) || 0;
-      const d3 = parseFloat(tr.querySelector('.col-d3').value) || 0;
-      const d4 = parseFloat(tr.querySelector('.col-d4').value) || 0;
-      const d5 = parseFloat(tr.querySelector('.col-d5').value) || 0;
-      const margen = parseFloat(tr.querySelector('.col-margen').value) || 0;
-
-      let costoNetoUnit = precioLista;
-      costoNetoUnit *= (1 - d1 / 100);
-      costoNetoUnit *= (1 - d2 / 100);
-      costoNetoUnit *= (1 - d3 / 100);
-      costoNetoUnit *= (1 - d4 / 100);
-      costoNetoUnit *= (1 - d5 / 100);
-
-      const precioVentaUnit = costoNetoUnit * (1 + margen / 100);
-      const totalPrecioVentaFila = precioVentaUnit * cantidad;
-
-      tr.querySelector('.col-costo').value = costoNetoUnit.toFixed(2);
-      tr.querySelector('.col-venta').value = precioVentaUnit.toFixed(2);
-      tr.querySelector('.col-totventa').value = totalPrecioVentaFila.toFixed(2);
-    }
-
-    function recalcularPresupuestoCompleto() {
-      const filas = document.querySelectorAll('#tbodyPresupuesto tr');
-      filas.forEach(tr => calcularFila(tr));
-      calcularTotalesGenerales();
-    }
-
-    let ultimoReemplazoGlobal = null;
-
-    function actualizarTipoInputGlobal() {
-      const campo = document.getElementById('globalCampo').value;
-      const valorInput = document.getElementById('globalValor');
-
-      if (campo === 'col-origen') {
-        valorInput.type = 'text';
-        valorInput.step = '';
-        valorInput.placeholder = 'Ej: Nacional';
-      } else {
-        valorInput.type = 'number';
-        valorInput.step = '0.01';
-        valorInput.placeholder = 'Valor %';
-      }
-      valorInput.value = '';
-    }
-
-    function aplicarReemplazoGlobal() {
-      const campo = document.getElementById('globalCampo').value;
-      const valorInput = document.getElementById('globalValor');
-      const valor = valorInput.value;
-      const esTexto = campo === 'col-origen';
-
-      if (valor === '' || (!esTexto && isNaN(parseFloat(valor)))) {
-        mostrarToast(esTexto ? "Ingresá un valor de Origen antes de aplicar." : "Ingresá un valor numérico antes de aplicar.", "alerta");
-        return;
-      }
-
-      const filas = document.querySelectorAll('#tbodyPresupuesto tr');
-      let modificadas = 0;
-      const cambiosPrevios = [];
-
-      filas.forEach(tr => {
-        if (tr.style.display === 'none') return;
-
-        const celda = tr.querySelector('.' + campo);
-        if (celda) {
-          cambiosPrevios.push({ tr, valorAnterior: celda.value });
-          celda.value = valor;
-          calcularFila(tr);
-          modificadas++;
-        }
-      });
-
-      calcularTotalesGenerales();
-
-      const btnDeshacer = document.getElementById('btnDeshacerGlobal');
-      if (modificadas === 0) {
-        mostrarToast("No hay filas visibles para modificar. Revisá los filtros.", "alerta");
-      } else {
-        ultimoReemplazoGlobal = { campo, cambios: cambiosPrevios };
-        btnDeshacer.classList.remove('hidden');
-        mostrarToast(`Se aplicó el valor a ${modificadas} fila(s) visible(s).`, "exito");
-      }
-    }
-
-    function deshacerReemplazoGlobal() {
-      if (!ultimoReemplazoGlobal) {
-        mostrarToast("No hay ningún reemplazo global para deshacer.", "alerta");
-        return;
-      }
-
-      const { campo, cambios } = ultimoReemplazoGlobal;
-      let restauradas = 0;
-
-      cambios.forEach(({ tr, valorAnterior }) => {
-        if (!document.body.contains(tr)) return;
-        const celda = tr.querySelector('.' + campo);
-        if (celda) {
-          celda.value = valorAnterior;
-          calcularFila(tr);
-          restauradas++;
-        }
-      });
-
-      calcularTotalesGenerales();
-      ultimoReemplazoGlobal = null;
-      document.getElementById('btnDeshacerGlobal').classList.add('hidden');
-      mostrarToast(`Se restauraron los valores anteriores en ${restauradas} fila(s).`, "exito");
-    }
-
-    function filtrarTabla() {
-      const inputsFiltro = document.querySelectorAll('#filaFiltros input');
-      const filas = document.querySelectorAll('#tbodyPresupuesto tr');
-
-      filas.forEach(tr => {
-        let esVisible = true;
-
-        inputsFiltro.forEach(input => {
-          const colClass = input.dataset.col;
-          const valorFiltro = input.value.trim().toLowerCase();
-
-          if (valorFiltro && colClass) {
-            const celdaInput = tr.querySelector('.' + colClass);
-            const valorCelda = celdaInput ? celdaInput.value.toString().toLowerCase() : '';
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AltF2 | Buscador de Productos</title>
+    <link rel="icon" type="image/png" href="LOGO NUEVO.png">
+    
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Librerías externas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        :root {
+            /* Paleta Corporativa: Azul, Blanco y Rojo */
+            --bg-body: #f1f5f9;
+            --card-bg: #ffffff;
             
-            if (!valorCelda.includes(valorFiltro)) {
-              esVisible = false;
-            }
-          }
-        });
-
-        tr.style.display = esVisible ? '' : 'none';
-      });
-
-      calcularTotalesGenerales();
-    }
-
-    function limpiarFiltros() {
-      const inputsFiltro = document.querySelectorAll('#filaFiltros input');
-      inputsFiltro.forEach(input => input.value = '');
-      filtrarTabla();
-      mostrarToast("Se restablecieron todos los filtros.", "info");
-    }
-
-    function calcularTotalesGenerales() {
-      const filas = document.querySelectorAll('#tbodyPresupuesto tr');
-      let sumaCantidad = 0;
-      let sumaPrecioLista = 0;
-      let sumaCostoNetoUnit = 0;
-      let sumaPrecioVentaUnit = 0;
-      let sumaTotalPrecioVentaFila = 0;
-      let sumaTotalCostoNetoFila = 0;
-      let sumaMargen = 0;
-      let filasVisibles = 0;
-
-      filas.forEach(tr => {
-        if (tr.style.display === 'none') return;
-        filasVisibles++;
-
-        const cantidad = parseFloat(tr.querySelector('.col-cantidad').value) || 0;
-        let precio = parseFloat(tr.querySelector('.col-precio').value) || 0;
-        const monedaFilaEl = tr.querySelector('.col-monedafila');
-        const monedaFila = monedaFilaEl ? monedaFilaEl.value : '$';
-        if (monedaFila !== monedaActual) {
-          const tasaOrigen = obtenerTasaEnPesos(monedaFila);
-          const tasaDestino = obtenerTasaEnPesos(monedaActual);
-          if (tasaDestino > 0) precio = (precio * tasaOrigen) / tasaDestino;
+            /* Azules */
+            --primary: #1d4ed8;
+            --primary-hover: #1e40af;
+            --primary-light: #eff6ff;
+            --primary-border: #bfdbfe;
+            --primary-glow: rgba(29, 78, 216, 0.22);
+            
+            --dark-navy: #091e42;
+            --navy-surface: #0b1f3a;
+            --navy-table-head: #0e2238;
+            
+            /* Rojos de Acento */
+            --accent-red: #dc2626;
+            --accent-red-hover: #b91c1c;
+            --accent-red-light: #fef2f2;
+            --accent-red-border: #fecaca;
+            --accent-red-glow: rgba(220, 38, 38, 0.2);
+            
+            /* Acentos Complementarios */
+            --excel-green: #059669;
+            --excel-green-hover: #047857;
+            --excel-green-light: #ecfdf5;
+            --excel-green-border: #a7f3d0;
+            
+            /* Neutros y Bordes */
+            --border-color: #cbd5e1;
+            --border-light: #e2e8f0;
+            --border-subtle: #f1f5f9;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --text-light: #94a3b8;
+            
+            /* Tipografía */
+            --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+            
+            /* Sombras Modernas Multicapa */
+            --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+            --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+            --shadow-lg: 0 16px 32px -6px rgba(15, 23, 42, 0.08), 0 6px 12px -3px rgba(15, 23, 42, 0.03);
+            --shadow-card: 0 10px 30px -5px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(226, 232, 240, 0.85);
         }
-        const costoUnit = parseFloat(tr.querySelector('.col-costo').value) || 0;
-        const ventaUnit = parseFloat(tr.querySelector('.col-venta').value) || 0;
-        const totalVentaFila = parseFloat(tr.querySelector('.col-totventa').value) || 0;
-        const margen = parseFloat(tr.querySelector('.col-margen').value) || 0;
 
-        sumaCantidad += cantidad;
-        sumaPrecioLista += precio;
-        sumaCostoNetoUnit += costoUnit;
-        sumaPrecioVentaUnit += ventaUnit;
-        sumaTotalPrecioVentaFila += totalVentaFila;
-        sumaTotalCostoNetoFila += (costoUnit * cantidad);
-        sumaMargen += margen;
-      });
-
-      const gananciaTotal = sumaTotalPrecioVentaFila - sumaTotalCostoNetoFila;
-      const margenPromedio = filasVisibles > 0 ? (sumaMargen / filasVisibles) : 0;
-
-      document.getElementById('totalCantidad').innerText = sumaCantidad;
-      document.getElementById('totalPrecioLista').innerText = `${obtenerSimboloMoneda(monedaActual)} ${sumaPrecioLista.toFixed(2)}`;
-      document.getElementById('totalCostoNetoUnit').innerText = `${obtenerSimboloMoneda(monedaActual)} ${sumaCostoNetoUnit.toFixed(2)}`;
-      document.getElementById('totalPrecioVentaUnit').innerText = `${obtenerSimboloMoneda(monedaActual)} ${sumaPrecioVentaUnit.toFixed(2)}`;
-      document.getElementById('totalPrecioVentaFila').innerText = `${obtenerSimboloMoneda(monedaActual)} ${sumaTotalPrecioVentaFila.toFixed(2)}`;
-      document.getElementById('promedioMargen').innerText = `${margenPromedio.toFixed(1)}% Prom.`;
-
-      document.getElementById('kpiUnidades').innerText = sumaCantidad;
-      document.getElementById('kpiCosto').innerText = `${obtenerSimboloMoneda(monedaActual)} ${sumaTotalCostoNetoFila.toFixed(2)}`;
-      document.getElementById('kpiVenta').innerText = `${obtenerSimboloMoneda(monedaActual)} ${sumaTotalPrecioVentaFila.toFixed(2)}`;
-      document.getElementById('kpiGanancia').innerText = `${obtenerSimboloMoneda(monedaActual)} ${gananciaTotal.toFixed(2)}`;
-    }
-
-    function normalizarMonedaFila(valorCrudo) {
-      const v = (valorCrudo || '').toString().trim().toUpperCase();
-
-      if (v === '1') return '$';
-      if (v === '2') return 'USD';
-      if (v === '3') return 'DIVISA';
-      if (v === '58') return 'EUR';
-
-      if (['EUR', 'EURO', 'EUROS', '€'].includes(v)) return 'EUR';
-      if (['DIVISA', 'DOLAR DIVISA', 'DÓLAR DIVISA', 'MAYORISTA', 'DOLAR MAYORISTA', 'DÓLAR MAYORISTA'].includes(v)) return 'DIVISA';
-      if (['USD', 'U$S', 'US$', 'DOLAR', 'DÓLAR', 'DOLARES', 'DÓLARES', 'BNA', 'DOLAR BNA', 'DÓLAR BNA', 'U$S BNA'].includes(v)) return 'USD';
-
-      return '$';
-    }
-
-    function parseCSVTexto(texto) {
-      const lineas = texto.split(/\r\n|\n|\r/).filter(l => l.trim() !== '');
-      if (lineas.length === 0) return [];
-
-      const primeraLinea = lineas[0];
-      const cantPuntoYComa = (primeraLinea.match(/;/g) || []).length;
-      const delimitador = cantPuntoYComa > 0 ? ';' : ',';
-
-      function parsearLinea(linea) {
-        const resultado = [];
-        let actual = '';
-        let entreComillas = false;
-        for (let i = 0; i < linea.length; i++) {
-          const ch = linea[i];
-          if (entreComillas) {
-            if (ch === '"') {
-              if (linea[i + 1] === '"') { actual += '"'; i++; }
-              else { entreComillas = false; }
-            } else {
-              actual += ch;
-            }
-          } else {
-            if (ch === '"') entreComillas = true;
-            else if (ch === delimitador) { resultado.push(actual); actual = ''; }
-            else actual += ch;
-          }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-        resultado.push(actual);
-        return resultado;
-      }
 
-      const encabezados = parsearLinea(lineas[0]).map(h => h.trim());
-      const filas = [];
-      for (let i = 1; i < lineas.length; i++) {
-        const campos = parsearLinea(lineas[i]);
-        const obj = {};
-        encabezados.forEach((h, idx) => { obj[h] = campos[idx] !== undefined ? campos[idx].trim() : ''; });
-        filas.push(obj);
-      }
-      return filas;
-    }
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-body);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(29, 78, 216, 0.04) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(220, 38, 38, 0.03) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(29, 78, 216, 0.02) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            padding: 36px 24px 48px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
 
-    function importarExcel(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+        .container {
+            max-width: 1240px;
+            margin: 0 auto;
+        }
 
-      const esTextoPlano = /\.(csv|txt)$/i.test(file.name);
-      const reader = new FileReader();
+        /* Header y Marca AltF2 */
+        .header-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 26px;
+            flex-wrap: wrap;
+            gap: 18px;
+        }
 
-      reader.onload = function(e) {
-        try {
-          let jsonData;
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
 
-          if (esTextoPlano) {
-            jsonData = parseCSVTexto(e.target.result);
-          } else {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-          }
+        .brand-logo-img {
+            height: 56px;
+            width: auto;
+            max-width: 220px;
+            object-fit: contain;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 4px 10px rgba(15, 39, 74, 0.12));
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            user-select: none;
+        }
 
-          if (jsonData.length === 0) {
-            mostrarToast("El archivo seleccionado está vacío.", "alerta");
-            return;
-          }
+        .brand-logo-img:hover {
+            transform: scale(1.03);
+        }
 
-          document.getElementById('tbodyPresupuesto').innerHTML = '';
+        .brand-text-group {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
 
-          let cargados = 0;
+        .brand-subtitle {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
 
-          const parseNumeroLocal = (val) => {
-            if (typeof val === 'number') return val;
-            if (val === undefined || val === null) return 0;
-            let s = String(val).trim().replace(/\s/g, '');
-            if (s === '') return 0;
-            const hasComma = s.includes(',');
-            const hasDot = s.includes('.');
-            if (hasComma && hasDot) {
-              if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
-                s = s.replace(/\./g, '').replace(',', '.');
-              } else {
-                s = s.replace(/,/g, '');
-              }
-            } else if (hasComma) {
-              s = s.replace(',', '.');
+        .brand-subtitle::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--primary);
+        }
+
+        /* Badge de Estado */
+        .status-badge {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 9px 18px;
+            border-radius: 9999px;
+            background-color: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+        }
+
+        .status-badge.loading {
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+        }
+
+        .status-badge.success {
+            background-color: #ecfdf5;
+            color: #065f46;
+            border-color: #a7f3d0;
+        }
+
+        .status-badge.error {
+            background-color: var(--accent-red-light);
+            color: var(--accent-red-hover);
+            border-color: var(--accent-red-border);
+        }
+
+        /* Tarjeta de Formulario de Búsqueda */
+        .search-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 26px 28px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: var(--shadow-card);
+            margin-bottom: 26px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Barra decorativa superior tricolor: Azul, Blanco, Rojo */
+        .search-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3.5px;
+            background: linear-gradient(90deg, var(--primary) 0%, #3b82f6 60%, var(--accent-red) 100%);
+        }
+
+        .search-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px 20px;
+            margin-bottom: 22px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.65px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .form-group input {
+            padding: 11px 14px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: var(--font-sans);
+            color: var(--text-main);
+            outline: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: #f8fafc;
+        }
+
+        .form-group input::placeholder {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .form-group input:hover {
+            border-color: #94a3b8;
+            background-color: #ffffff;
+        }
+
+        .form-group input:focus {
+            background-color: #ffffff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3.5px var(--primary-glow);
+        }
+
+        /* Barra de Acciones */
+        .actions-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            padding-top: 18px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .btn-group-left, .btn-group-right {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 11px 22px;
+            border: none;
+            border-radius: 9px;
+            font-family: var(--font-sans);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        /* Botón Buscar (Azul principal de alto impacto) */
+        .btn-search { 
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+            color: #ffffff; 
+            box-shadow: 0 3px 10px rgba(29, 78, 216, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        .btn-search:hover { 
+            background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+            box-shadow: 0 5px 16px rgba(29, 78, 216, 0.4);
+            transform: translateY(-1px);
+        }
+
+        /* Botón Limpiar (Blanco profesional con toque interactivo en Rojo) */
+        .btn-clear {
+            background-color: #ffffff;
+            color: var(--text-muted);
+            border: 1.5px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-clear:hover { 
+            background-color: var(--accent-red-light);
+            color: var(--accent-red); 
+            border-color: var(--accent-red-border);
+            box-shadow: 0 3px 8px var(--accent-red-glow);
+            transform: translateY(-1px);
+        }
+
+        /* Botón Excel (Verde corporativo refinado) */
+        .btn-excel { 
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: #ffffff; 
+            box-shadow: 0 3px 10px rgba(5, 150, 105, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-excel:hover:not(:disabled) { 
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
+            box-shadow: 0 5px 16px rgba(5, 150, 105, 0.35);
+            transform: translateY(-1px);
+        }
+
+        button:disabled { 
+            opacity: 0.45; 
+            cursor: not-allowed; 
+            transform: none !important; 
+            box-shadow: none !important; 
+        }
+
+        /* Contenedor de Tabla y Resultados */
+        .results-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+        }
+
+        .results-header {
+            padding: 16px 24px;
+            background: linear-gradient(to right, #ffffff, #f8fafc);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .counter-text {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--dark-navy);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-responsive { 
+            width: 100%; 
+            overflow-x: auto; 
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: var(--navy-table-head);
+            color: #ffffff;
+            padding: 14px 20px;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.75px;
+            white-space: nowrap;
+            border-right: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        th:last-child {
+            border-right: none;
+        }
+
+        td {
+            padding: 13px 20px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-main);
+            vertical-align: middle;
+        }
+
+        tr:nth-child(even) td {
+            background-color: #fafbfd;
+        }
+
+        tr:hover td { 
+            background-color: #eff6ff; 
+        }
+
+        /* Badges de Código Modernos */
+        .code-badge {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e3a8a;
+            background-color: #f1f5f9;
+            padding: 4px 9px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.18s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .code-badge::after {
+            content: '📋';
+            font-size: 10px;
+            opacity: 0.45;
+            transition: opacity 0.15s ease;
+        }
+
+        .code-badge:hover { 
+            background-color: #e2e8f0; 
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(29, 78, 216, 0.15);
+        }
+
+        .code-badge:hover::after {
+            opacity: 1;
+        }
+
+        .code-badge.copied {
+            background-color: #dcfce7 !important;
+            color: #15803d !important;
+            border-color: #86efac !important;
+            box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
+        }
+
+        .code-badge.copied::after {
+            content: '✓';
+            opacity: 1;
+        }
+
+        .brand-tag {
+            font-weight: 700;
+            color: var(--dark-navy);
+            letter-spacing: 0.2px;
+        }
+
+        .alt-code-text {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: #475569;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 56px 24px;
+            color: var(--text-muted);
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        /* Sección de Restricciones / Filtros Avanzados */
+        .filters-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 12px 20px;
+            padding-top: 16px;
+            border-top: 1px dashed var(--border-light);
+            margin-top: 18px;
+        }
+
+        .filter-check-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1.5px solid var(--border-color);
+            background: #f8fafc;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+        }
+
+        .filter-check-label:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .filter-check-label input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 17px;
+            height: 17px;
+            border: 2px solid var(--border-color);
+            border-radius: 5px;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .filter-check-label input[type="checkbox"]:checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .filter-check-label input[type="checkbox"]:checked::after {
+            content: '';
+            position: absolute;
+            top: 1px;
+            left: 4px;
+            width: 5px;
+            height: 9px;
+            border: 2px solid #ffffff;
+            border-top: none;
+            border-left: none;
+            transform: rotate(45deg);
+        }
+
+        .filter-check-label.active {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        /* Panel de exclusión de palabras */
+        .exclusion-panel {
+            display: none;
+            width: 100%;
+            animation: slideDown 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .exclusion-panel.visible {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .exclusion-panel label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.65px;
+            white-space: nowrap;
+        }
+
+        .exclusion-panel input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+            padding: 9px 14px;
+            border: 1.5px solid var(--accent-red-border);
+            border-radius: 10px;
+            font-size: 13px;
+            font-family: var(--font-sans);
+            color: var(--text-main);
+            outline: none;
+            background-color: var(--accent-red-light);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .exclusion-panel input[type="text"]:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px var(--accent-red-glow);
+            background: #ffffff;
+        }
+
+        .exclusion-hint {
+            font-size: 11px;
+            color: var(--text-light);
+            font-style: italic;
+        }
+
+        /* Controles de Paginación */
+        .page-indicator {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary);
+            background: var(--primary-light);
+            border: 1px solid var(--primary-border);
+            padding: 4px 12px;
+            border-radius: 9999px;
+            letter-spacing: 0.3px;
+        }
+
+        .pagination-footer {
+            padding: 16px 24px;
+            background: linear-gradient(to right, #ffffff, #f8fafc);
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .pagination-info {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 600;
+            flex-wrap: wrap;
+        }
+
+        .page-size-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-size-selector label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .page-size-selector select {
+            padding: 5px 10px;
+            border-radius: 8px;
+            border: 1.5px solid var(--border-color);
+            font-size: 13px;
+            font-family: var(--font-sans);
+            font-weight: 600;
+            background: #ffffff;
+            color: var(--text-main);
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .page-size-selector select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .pagination-nav {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            user-select: none;
+        }
+
+        .page-btn {
+            min-width: 36px;
+            height: 36px;
+            padding: 0 10px;
+            border-radius: 8px;
+            border: 1.5px solid var(--border-color);
+            background: #ffffff;
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+
+        .page-btn:hover:not(:disabled):not(.active) {
+            border-color: var(--primary);
+            color: var(--primary);
+            background-color: var(--primary-light);
+            transform: translateY(-1px);
+        }
+
+        .page-btn.active {
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+            color: #ffffff;
+            border-color: var(--primary);
+            box-shadow: 0 3px 8px var(--primary-glow);
+            cursor: default;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            border-color: var(--border-light);
+            background: #f8fafc;
+            color: var(--text-muted);
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .page-ellipsis {
+            min-width: 24px;
+            text-align: center;
+            color: var(--text-light);
+            font-weight: 700;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        /* Responsividad */
+        @media (max-width: 640px) {
+            body {
+                padding: 18px 12px;
             }
-            const n = parseFloat(s);
-            return isNaN(n) ? 0 : n;
-          };
+            .brand-logo-img {
+                height: 44px;
+            }
+            .search-card {
+                padding: 18px 16px;
+            }
+            .actions-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .btn-group-left, .btn-group-right {
+                width: 100%;
+            }
+            button {
+                flex: 1;
+                justify-content: center;
+            }
+            .pagination-footer {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                padding: 14px 12px;
+            }
+            .pagination-info {
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+            .pagination-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 4px;
+            }
+            .page-btn {
+                min-width: 32px;
+                height: 32px;
+                padding: 0 6px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
 
-          jsonData.forEach(row => {
-            const getVal = (keys) => {
-              for (let k of keys) {
-                const foundKey = Object.keys(row).find(rk => rk.trim().toLowerCase() === k.toLowerCase());
-                if (foundKey && row[foundKey] !== undefined && row[foundKey] !== "") {
-                  return row[foundKey];
+<div class="container">
+    
+    <!-- Encabezado con Logo AltF2 -->
+    <div class="header-title">
+        <div class="brand-container">
+            <img src="LOGO NUEVO.png" alt="AltF2 Logo" class="brand-logo-img">
+            <div class="brand-text-group">
+                <div class="brand-subtitle">Buscador de Productos</div>
+            </div>
+        </div>
+        <div id="status" class="status-badge loading">⏳ Conectando con la base de datos...</div>
+    </div>
+
+    <div class="search-card">
+        <div class="search-grid">
+            <div class="form-group">
+                <label for="det1">Detalle 1 (Nombre)</label>
+                <input type="text" id="det1" placeholder="Ej: PANTALON">
+            </div>
+            <div class="form-group">
+                <label for="det2">Detalle 2 (Nombre)</label>
+                <input type="text" id="det2" placeholder="Ej: BEIGE">
+            </div>
+            <div class="form-group">
+                <label for="det3">Detalle 3 (Nombre)</label>
+                <input type="text" id="det3" placeholder="Ej: XXL">
+            </div>
+            <div class="form-group">
+                <label for="marca">Marca</label>
+                <input type="text" id="marca" placeholder="Ej: OMBU">
+            </div>
+            <div class="form-group">
+                <label for="codigo">Código MyLogic</label>
+                <input type="text" id="codigo" placeholder="Ej: 58963412">
+            </div>
+            <div class="form-group">
+                <label for="codAlt">Código Articulo Proveedor</label>
+                <input type="text" id="codAlt" placeholder="Ej: CONFECAT-01">
+            </div>
+        </div>
+
+        <!-- Filtros de Restricción -->
+        <div class="filters-bar">
+            <label class="filter-check-label" id="labelCod8" for="chkCod8">
+                <input type="checkbox" id="chkCod8" onchange="toggleFiltro('cod8', this)">
+                🔢 SOLO CÓDIGO DE 8 DÍGITOS
+            </label>
+
+            <label class="filter-check-label" id="labelExcluir" for="chkExcluir">
+                <input type="checkbox" id="chkExcluir" onchange="toggleFiltro('excluir', this)">
+                🚫 EXCLUIR PALABRA CLAVE
+            </label>
+
+            <div class="exclusion-panel" id="exclusionPanel">
+                <label for="palabrasExcluidas">Palabras a excluir:</label>
+                <input type="text" id="palabrasExcluidas" placeholder="Ej: XXL; XXXL; AZUL" title="Separar múltiples palabras con ;">
+                <span class="exclusion-hint">Separar con ;</span>
+            </div>
+        </div>
+
+        <div class="actions-bar">
+            <div class="btn-group-left">
+                <button class="btn-search" onclick="filtrarProductos()">🔍 Buscar</button>
+                <button class="btn-clear" onclick="limpiar()">🧹 Limpiar Filtros</button>
+            </div>
+            <div class="btn-group-right">
+                <button class="btn-excel" id="btnExport" onclick="exportarExcel()" disabled>📊 Exportar a Excel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="results-card">
+        <div class="results-header">
+            <span class="counter-text" id="counter">Sin búsquedas activas</span>
+            <span class="page-indicator" id="headerPageIndicator" style="display: none;"></span>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Código Alt.</th>
+                        <th>Marca</th>
+                        <th>Nombre / Descripción</th>
+                    </tr>
+                </thead>
+                <tbody id="resultadosBody">
+                    <tr>
+                        <td colspan="4" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-footer" id="paginationFooter" style="display: none;">
+            <div class="pagination-info">
+                <span id="paginationRange">Mostrando 0 de 0</span>
+                <div class="page-size-selector">
+                    <label for="pageSizeSelect">Por página:</label>
+                    <select id="pageSizeSelect" onchange="cambiarTamanoPagina(this.value)">
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+            </div>
+            <div class="pagination-nav" id="paginationNav">
+                <!-- Botones generados dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let productos = [];
+    let resultadosActuales = [];
+    let paginaActual = 1;
+    let tamanoPagina = 50;
+
+    // Busca un valor en el objeto p probando varios nombres de columna (ignora mayúsculas y acentos)
+    function obtenerValor(obj, nombresPosibles) {
+        if (!obj) return '';
+        const keys = Object.keys(obj);
+        
+        for (let posible of nombresPosibles) {
+            const posibleLimpio = posible.toLowerCase().replace(/^\uFEFF/, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            
+            for (let key of keys) {
+                const keyLimpia = key.toLowerCase().replace(/^\uFEFF/, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                if (keyLimpia === posibleLimpio || keyLimpia.includes(posibleLimpio)) {
+                    const val = obj[key];
+                    if (val !== undefined && val !== null) return String(val).trim();
                 }
-              }
-              return "";
-            };
-
-            const nroItem = getVal(["nro_item", "nroitem", "n_item", "nitem", "item_nro", "n° item", "nro item", "número item", "numero item", "nro"]);
-            const cantidad = parseNumeroLocal(getVal(["cantidad", "cant", "qty"])) || 1;
-            const codigo = getVal(["codigo", "código", "cod", "item"]);
-            const detalle = getVal(["detalle", "descripcion", "descripción", "articulo", "artículo"]);
-            const precio = parseNumeroLocal(getVal(["precio_lista", "preciolista", "precio", "precio lista"])) || 0;
-            const obs = getVal(["observaciones", "obs"]);
-            const d1 = parseNumeroLocal(getVal(["desc_1", "desc1", "descuento1"])) || 0;
-            const d2 = parseNumeroLocal(getVal(["desc_2", "desc2", "descuento2"])) || 0;
-            const d3 = parseNumeroLocal(getVal(["desc_3", "desc3", "descuento3"])) || 0;
-            const d4 = parseNumeroLocal(getVal(["desc_4", "desc4", "descuento4"])) || 0;
-            const d5 = parseNumeroLocal(getVal(["desc_5", "desc5", "descuento5"])) || 0;
-            const margen = parseNumeroLocal(getVal(["margen", "margen_comercial", "markup"])) || 0;
-            const origen = getVal(["origen", "proveedor"]);
-            const codCliente = getVal(["cod_cliente_a", "codigo_cliente_a", "codigo cliente a", "cod_cliente", "codigo_cliente", "codigocliente", "codcliente", "cod cliente", "codigo cliente", "código cliente", "cliente"]);
-            const codCliente2 = getVal(["cod_cliente_b", "codigo_cliente_b", "codigo cliente b", "cod_cliente2", "codigo_cliente2"]);
-            const monedaFilaCruda = getVal(["moneda", "monedacosto", "moneda_costo", "moneda costo", "currency"]).toString().trim().toUpperCase();
-            const monedaFila = normalizarMonedaFila(monedaFilaCruda);
-
-            if (codigo || detalle || precio > 0) {
-              agregarFila({
-                nroItem, cantidad, codigo, detalle, obs, precio, monedaFila, d1, d2, d3, d4, d5, margen, origen, codCliente, codCliente2
-              });
-              cargados++;
             }
-          });
-
-          if (cargados < 5) {
-            agregarMultiplesFilas(5 - cargados);
-          }
-
-          calcularTotalesGenerales();
-          mostrarToast(`¡Se importaron ${cargados} artículos desde el archivo!`, "exito");
-        } catch (err) {
-          console.error(err);
-          mostrarToast("Error al leer el archivo Excel/CSV. Revisa la consola.", "alerta");
         }
-      };
-
-      if (esTextoPlano) {
-        reader.readAsText(file, 'UTF-8');
-      } else {
-        reader.readAsArrayBuffer(file);
-      }
-      event.target.value = '';
+        return '';
     }
 
-    function obtenerNombreMoneda(codigoMoneda) {
-      switch (codigoMoneda) {
-        case '$': return 'Pesos Argentinos ($)';
-        case 'USD': return 'Dólar BNA (USD)';
-        case 'DIVISA': return 'Dólar Divisa';
-        case 'EUR': return 'Euros (€)';
-        default: return codigoMoneda;
-      }
-    }
+    // Convierte notación científica (soporta coma/punto) a texto numérico completo
+    function formatearCodigo(val) {
+        if (val === null || val === undefined) return '';
+        let str = String(val).trim();
+        if (!str) return '';
 
-    function exportarPDF() {
-      if (typeof window.jspdf === 'undefined') {
-        mostrarToast("No se pudo cargar la librería de PDF. Revisá tu conexión a internet.", "alerta");
-        return;
-      }
-
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-      const cliente = document.getElementById('metaCliente').value || '-';
-      const numero = document.getElementById('metaNumero').value || '-';
-      const fechaInput = document.getElementById('metaFecha').value;
-      const fecha = fechaInput ? new Date(fechaInput + 'T00:00:00').toLocaleDateString('es-AR') : new Date().toLocaleDateString('es-AR');
-      const moneda = obtenerSimboloMoneda(monedaActual);
-
-      doc.setFontSize(16);
-      doc.setFont(undefined, 'bold');
-      doc.text('PRESUPUESTO', 105, 15, { align: 'center' });
-
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
-      doc.text(`Presupuesto N°: ${numero}`, 14, 26);
-      doc.text(`Fecha de Emisión: ${fecha}`, 14, 32);
-      doc.text(`Moneda: ${obtenerNombreMoneda(monedaActual)}`, 14, 38);
-      doc.text(`Cliente / Empresa: ${cliente}`, 14, 44);
-
-      const filas = document.querySelectorAll('#tbodyPresupuesto tr');
-      const body = [];
-      let totalPresupuesto = 0;
-
-      filas.forEach(tr => {
-        if (tr.style.display === 'none') return;
-
-        const nroItem = tr.querySelector('.col-nroitem').value;
-        const cantidad = tr.querySelector('.col-cantidad').value;
-        const detalle = tr.querySelector('.col-detalle').value;
-        const obs = tr.querySelector('.col-obs').value;
-        const ventaUnit = parseFloat(tr.querySelector('.col-venta').value) || 0;
-        const totVenta = parseFloat(tr.querySelector('.col-totventa').value) || 0;
-
-        if (!detalle && !cantidad && totVenta === 0) return;
-
-        totalPresupuesto += totVenta;
-
-        body.push([
-          nroItem || '',
-          cantidad || '',
-          detalle || '',
-          obs || '',
-          `${moneda} ${ventaUnit.toFixed(2)}`,
-          `${moneda} ${totVenta.toFixed(2)}`
-        ]);
-      });
-
-      doc.autoTable({
-        startY: 50,
-        head: [["N° Item", "Cantidad", "Detalle Artículo", "Observaciones", "Precio Venta Unit.", "Total Precio Venta"]],
-        body: body,
-        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-        headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
-        columnStyles: {
-          0: { cellWidth: 15, halign: 'center' },
-          1: { cellWidth: 18, halign: 'center' },
-          2: { cellWidth: 'auto' },
-          3: { cellWidth: 35 },
-          4: { cellWidth: 30, halign: 'right' },
-          5: { cellWidth: 30, halign: 'right' }
-        },
-        margin: { left: 14, right: 14 }
-      });
-
-      const finalY = doc.lastAutoTable.finalY + 8;
-      doc.setFontSize(11);
-      doc.setFont(undefined, 'bold');
-      doc.text(`TOTAL PRESUPUESTO: ${moneda} ${totalPresupuesto.toFixed(2)}`, 196, finalY, { align: 'right' });
-
-      if (body.length === 0) {
-        mostrarToast("No hay ítems visibles para incluir en el PDF.", "alerta");
-        return;
-      }
-
-      const limpiar = (s) => (s || '').toString().trim().replace(/[^a-z0-9_\-]/gi, '_').replace(/_+/g, '_');
-      const nombreArchivo = `Presupuesto_${limpiar(cliente) || 'Cliente'}_${limpiar(numero) || 'SN'}.pdf`;
-
-      doc.save(nombreArchivo);
-      mostrarToast("PDF generado correctamente.", "exito");
-    }
-
-    function exportarPlantillaMylogic() {
-      const filas = document.querySelectorAll('#tbodyPresupuesto tr');
-
-      const data = [
-        ["Item", "Producto", "Caracteristica", "Producto.marca", "Producto.Código Alternativo", "Requerimiento", "Cantidad", "Precio", "Costo", "Subtotal"]
-      ];
-
-      filas.forEach(tr => {
-        const nroItem = tr.querySelector('.col-nroitem').value;
-        const producto = tr.querySelector('.col-codigo').value;
-        const caracteristica = tr.querySelector('.col-detalle').value;
-        const cantidad = tr.querySelector('.col-cantidad').value;
-
-        data.push([nroItem, producto, caracteristica, "", "", "", cantidad, "", "", ""]);
-      });
-
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Plantilla_Mylogic");
-      XLSX.writeFile(wb, `plantilla_mylogic_${new Date().toISOString().slice(0,10)}.xlsx`);
-      mostrarToast("Plantilla Mylogic exportada correctamente.", "exito");
-    }
-
-    function cargarDatosEjemplo() {
-      document.getElementById('tbodyPresupuesto').innerHTML = '';
-
-      const datosPrueba = [
-        { nroItem: 1, cantidad: 5, codigo: "HER-001", detalle: "Taladro Percutor 750W 13mm", obs: "Oferta de temporada", precio: 150000, d1: 10, d2: 5, d3: 0, d4: 0, d5: 0, margen: 35, origen: "Importado", codCliente: "CLI-A10" },
-        { nroItem: 2, cantidad: 20, codigo: "HER-042", detalle: "Juego de Mechas para Concreto x10", obs: "Caja plástica", precio: 28000, d1: 15, d2: 5, d3: 2, d4: 0, d5: 0, margen: 40, origen: "Nacional", codCliente: "CLI-A10" },
-        { nroItem: 3, cantidad: 10, codigo: "ELE-105", detalle: "Cable Unipolar 2.5mm x 100m", obs: "Normalizado IRAM", precio: 85000, d1: 20, d2: 10, d3: 5, d4: 2, d5: 0, margen: 25, origen: "Nacional", codCliente: "CLI-B22" },
-        { nroItem: 4, cantidad: 50, codigo: "BUL-882", detalle: "Tornillos Autoperforantes 10x2'' x500", obs: "Bolsa sellada", precio: 19500, d1: 5, d2: 0, d3: 0, d4: 0, d5: 0, margen: 50, origen: "Importado", codCliente: "CLI-B22" },
-        { nroItem: 5, cantidad: 8, codigo: "PIN-301", detalle: "Pintura Látex Interior Mate 20L", obs: "Color Blanco", precio: 110000, d1: 12, d2: 8, d3: 0, d4: 0, d5: 0, margen: 30, origen: "Nacional", codCliente: "CLI-C05" }
-      ];
-
-      datosPrueba.forEach(item => agregarFila(item));
-      calcularTotalesGenerales();
-      mostrarToast("Se cargaron los datos de prueba.", "info");
-    }
-
-    function limpiarTodo() {
-      document.getElementById('tbodyPresupuesto').innerHTML = '';
-      agregarMultiplesFilas(8);
-      calcularTotalesGenerales();
-      mostrarToast("Tabla reiniciada.", "info");
-    }
-
-    function exportarCSV() {
-      const filas = document.querySelectorAll('#tbodyPresupuesto tr');
-      if (filas.length === 0) {
-        mostrarToast("No hay datos para exportar.", "alerta");
-        return;
-      }
-
-      let csv = "NroItem;Cantidad;Codigo;Detalle;Observaciones;PrecioLista;MonedaCosto;Desc1;Desc2;Desc3;Desc4;Desc5;CostoNetoUnit;Margen;PrecioVentaUnit;TotalPrecioVenta;Proveedor;CodigoClienteA;CodigoCliente\n";
-
-      const formatearDecimalCSV = (val) => {
-        const n = parseFloat(val);
-        if (isNaN(n)) return "";
-        return n.toFixed(2).replace('.', ',');
-      };
-
-      filas.forEach(tr => {
-        const nroItem = tr.querySelector('.col-nroitem').value;
-        const cantidad = tr.querySelector('.col-cantidad').value;
-        const codigo = tr.querySelector('.col-codigo').value;
-        const detalle = tr.querySelector('.col-detalle').value;
-        const obs = tr.querySelector('.col-obs').value;
-        const precio = tr.querySelector('.col-precio').value;
-        const monedaFila = tr.querySelector('.col-monedafila').value;
-        const d1 = tr.querySelector('.col-d1').value;
-        const d2 = tr.querySelector('.col-d2').value;
-        const d3 = tr.querySelector('.col-d3').value;
-        const d4 = tr.querySelector('.col-d4').value;
-        const d5 = tr.querySelector('.col-d5').value;
-        const costoUnit = tr.querySelector('.col-costo').value;
-        const margen = tr.querySelector('.col-margen').value;
-        const ventaUnit = tr.querySelector('.col-venta').value;
-        const totVenta = tr.querySelector('.col-totventa').value;
-        const origen = tr.querySelector('.col-origen').value;
-        const codCliente = tr.querySelector('.col-codcliente').value;
-        const codCliente2 = tr.querySelector('.col-codcliente2').value;
-
-        if (codigo || detalle || precio) {
-          csv += `"${nroItem}";"${cantidad}";"${codigo}";"${detalle}";"${obs}";"${formatearDecimalCSV(precio)}";"${monedaFila}";"${d1}";"${d2}";"${d3}";"${d4}";"${d5}";"${formatearDecimalCSV(costoUnit)}";"${margen}";"${formatearDecimalCSV(ventaUnit)}";"${formatearDecimalCSV(totVenta)}";"${origen}";"${codCliente}";"${codCliente2}"\n`;
+        let strNormalizado = str.replace(',', '.');
+        
+        if (/^[+-]?\d+(\.\d+)?e[+-]?\d+$/i.test(strNormalizado)) {
+            let num = Number(strNormalizado);
+            if (!isNaN(num) && isFinite(num)) {
+                return num.toLocaleString('fullwide', { useGrouping: false });
+            }
         }
-      });
-
-      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute("download", `presupuesto_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      mostrarToast("Archivo CSV generado correctamente.", "exito");
+        return str;
     }
 
-    function guardarBackupJSON() {
-      const filas = document.querySelectorAll('#tbodyPresupuesto tr');
+    // Cargar automáticamente productos.csv desde GitHub o local
+    window.onload = async function() {
+        const statusDiv = document.getElementById('status');
+        const urls = [
+            'https://raw.githubusercontent.com/leandrocuadro/productos.csv/refs/heads/main/productos.csv',
+            'https://raw.githubusercontent.com/leandrocuadro/productos.csv/main/productos.csv',
+            'https://cdn.jsdelivr.net/gh/leandrocuadro/productos.csv@main/productos.csv',
+            './productos.csv'
+        ];
 
-      const items = [];
-      filas.forEach(tr => {
-        items.push({
-          nroItem: tr.querySelector('.col-nroitem').value,
-          cantidad: tr.querySelector('.col-cantidad').value,
-          codigo: tr.querySelector('.col-codigo').value,
-          detalle: tr.querySelector('.col-detalle').value,
-          obs: tr.querySelector('.col-obs').value,
-          precio: tr.querySelector('.col-precio').value,
-          monedaFila: tr.querySelector('.col-monedafila').value,
-          d1: tr.querySelector('.col-d1').value,
-          d2: tr.querySelector('.col-d2').value,
-          d3: tr.querySelector('.col-d3').value,
-          d4: tr.querySelector('.col-d4').value,
-          d5: tr.querySelector('.col-d5').value,
-          margen: tr.querySelector('.col-margen').value,
-          origen: tr.querySelector('.col-origen').value,
-          codCliente: tr.querySelector('.col-codcliente').value,
-          codCliente2: tr.querySelector('.col-codcliente2').value
+        let csvText = null;
+        for (let url of urls) {
+            try {
+                const res = await fetch(url);
+                if (res.ok) {
+                    const text = await res.text();
+                    if (text && text.trim().length > 0) {
+                        csvText = text.replace(/^\uFEFF/, ''); // Eliminar BOM si está presente
+                        break;
+                    }
+                }
+            } catch (e) {
+                console.warn("No se pudo descargar desde:", url, e);
+            }
+        }
+
+        if (csvText) {
+            Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (results.data && results.data.length > 0) {
+                        // Filtrar posibles filas completamente vacías
+                        productos = results.data.filter(p => Object.values(p).some(v => v && String(v).trim().length > 0));
+                        statusDiv.innerHTML = `✅ ${productos.length.toLocaleString()} productos disponibles`;
+                        statusDiv.className = 'status-badge success';
+                    } else {
+                        mostrarError("El archivo de productos está vacío o no tiene el formato correcto.");
+                    }
+                },
+                error: function(err) {
+                    mostrarError("Error al procesar el archivo CSV: " + err.message);
+                }
+            });
+        } else {
+            mostrarError("No se pudo conectar con la base de datos. Verifica tu conexión a internet.");
+        }
+
+        // Habilitar búsqueda con la tecla Enter en cualquiera de los inputs
+        const inputs = document.querySelectorAll('.search-grid input');
+        inputs.forEach(input => {
+            input.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    filtrarProductos();
+                }
+            });
         });
-      });
-
-      const backup = {
-        tipo: "backup_presupuesto",
-        version: 1,
-        fechaBackup: new Date().toISOString(),
-        metadata: {
-          cliente: document.getElementById('metaCliente').value,
-          numero: document.getElementById('metaNumero').value,
-          fecha: document.getElementById('metaFecha').value,
-          moneda: document.getElementById('metaMoneda').value,
-          tipoCambioBNA: document.getElementById('metaTCBNA').value,
-          tipoCambioDivisa: document.getElementById('metaTCDivisa').value,
-          tipoCambioEUR: document.getElementById('metaTCEUR').value
-        },
-        items: items
-      };
-
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const link = document.createElement("a");
-      const limpiar = (s) => (s || '').toString().trim().replace(/[^a-z0-9_\-]/gi, '_').replace(/_+/g, '_');
-      const clienteArchivo = limpiar(backup.metadata.cliente) || 'SinCliente';
-      const numeroArchivo = limpiar(backup.metadata.numero) || 'SinNumero';
-
-      const ahora = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      const fechaHora = `${pad(ahora.getDate())}_${pad(ahora.getMonth() + 1)}_${ahora.getFullYear()}_${pad(ahora.getHours())}_${pad(ahora.getMinutes())}`;
-
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute("download", `${clienteArchivo}_${numeroArchivo}_${fechaHora}.json`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      mostrarToast("Respaldo JSON guardado correctamente.", "exito");
-    }
-
-    function cargarBackupJSON(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const backup = JSON.parse(e.target.result);
-
-          if (!backup || !Array.isArray(backup.items)) {
-            mostrarToast("El archivo JSON no tiene un formato de respaldo válido.", "alerta");
-            return;
-          }
-
-          if (backup.metadata) {
-            if (backup.metadata.cliente !== undefined) document.getElementById('metaCliente').value = backup.metadata.cliente;
-            if (backup.metadata.numero !== undefined) document.getElementById('metaNumero').value = backup.metadata.numero;
-            if (backup.metadata.fecha !== undefined && backup.metadata.fecha) document.getElementById('metaFecha').value = backup.metadata.fecha;
-            if (backup.metadata.moneda !== undefined) document.getElementById('metaMoneda').value = backup.metadata.moneda;
-            if (backup.metadata.tipoCambioBNA !== undefined && backup.metadata.tipoCambioBNA !== '') document.getElementById('metaTCBNA').value = backup.metadata.tipoCambioBNA;
-            if (backup.metadata.tipoCambioDivisa !== undefined && backup.metadata.tipoCambioDivisa !== '') document.getElementById('metaTCDivisa').value = backup.metadata.tipoCambioDivisa;
-            if (backup.metadata.tipoCambioEUR !== undefined && backup.metadata.tipoCambioEUR !== '') document.getElementById('metaTCEUR').value = backup.metadata.tipoCambioEUR;
-          }
-          monedaActual = document.getElementById('metaMoneda').value;
-          tipoCambioBNA = parseFloat(document.getElementById('metaTCBNA').value) || 0;
-          tipoCambioDivisa = parseFloat(document.getElementById('metaTCDivisa').value) || 0;
-          tipoCambioEUR = parseFloat(document.getElementById('metaTCEUR').value) || 0;
-
-          document.getElementById('tbodyPresupuesto').innerHTML = '';
-          backup.items.forEach(item => agregarFila(item));
-
-          if (backup.items.length < 5) {
-            agregarMultiplesFilas(5 - backup.items.length);
-          }
-
-          calcularTotalesGenerales();
-          mostrarToast(`Respaldo restaurado: ${backup.items.length} ítems cargados.`, "exito");
-        } catch (err) {
-          console.error(err);
-          mostrarToast("Error al leer el archivo de respaldo JSON. Revisa la consola.", "alerta");
-        }
-      };
-
-      reader.readAsText(file);
-      event.target.value = '';
-    }
-
-    window.onload = function() {
-      cargarProductosGitHub();
-      agregarMultiplesFilas(8);
-      calcularTotalesGenerales();
     };
-  </script>
+
+    function mostrarError(mensaje) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML = `❌ ${mensaje}`;
+        statusDiv.className = 'status-badge error';
+    }
+
+    // Toggle visual del label del filtro al activar/desactivar
+    function toggleFiltro(tipo, checkbox) {
+        if (tipo === 'cod8') {
+            document.getElementById('labelCod8').classList.toggle('active', checkbox.checked);
+        } else if (tipo === 'excluir') {
+            document.getElementById('labelExcluir').classList.toggle('active', checkbox.checked);
+            const panel = document.getElementById('exclusionPanel');
+            panel.classList.toggle('visible', checkbox.checked);
+            if (checkbox.checked) {
+                document.getElementById('palabrasExcluidas').focus();
+            } else {
+                document.getElementById('palabrasExcluidas').value = '';
+            }
+        }
+    }
+
+    function filtrarProductos() {
+        if (!productos || productos.length === 0) {
+            alert("La base de datos aún no se ha cargado.");
+            return;
+        }
+
+        const d1 = document.getElementById('det1').value.toUpperCase().trim();
+        const d2 = document.getElementById('det2').value.toUpperCase().trim();
+        const d3 = document.getElementById('det3').value.toUpperCase().trim();
+        const marca = document.getElementById('marca').value.toUpperCase().trim();
+        const cod = document.getElementById('codigo').value.toUpperCase().trim();
+        const codAlt = document.getElementById('codAlt').value.toUpperCase().trim();
+
+        // Restricción 1: Solo código de 8 dígitos numéricos
+        const soloCod8 = document.getElementById('chkCod8').checked;
+
+        // Restricción 2: Palabras excluidas (separadas por ;)
+        const excluirActivo = document.getElementById('chkExcluir').checked;
+        const palabrasExcluidasRaw = document.getElementById('palabrasExcluidas').value;
+        const palabrasExcluidas = excluirActivo
+            ? palabrasExcluidasRaw
+                .split(';')
+                .map(p => p.toUpperCase().trim())
+                .filter(p => p.length > 0)
+            : [];
+
+        resultadosActuales = productos.filter(p => {
+            const rawNombre = obtenerValor(p, ['nombre', 'descripcion', 'descripción', 'detalle']);
+            const rawMarca = obtenerValor(p, ['marca']);
+            const rawCod = obtenerValor(p, ['código', 'codigo', 'cod']);
+            const rawCodAlt = obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt']);
+
+            const nombre = rawNombre.toUpperCase();
+            const pMarca = rawMarca.toUpperCase();
+            const pCod = formatearCodigo(rawCod).toUpperCase();
+            const pCodAlt = formatearCodigo(rawCodAlt).toUpperCase();
+
+            const matchD1 = !d1 || nombre.includes(d1);
+            const matchD2 = !d2 || nombre.includes(d2);
+            const matchD3 = !d3 || nombre.includes(d3);
+            const matchMarca = !marca || pMarca.includes(marca);
+            const matchCod = !cod || pCod.includes(cod);
+            const matchCodAlt = !codAlt || pCodAlt.includes(codAlt);
+
+            // Restricción 1: el código (formateado, sin espacios) debe tener exactamente 8 dígitos
+            const matchCod8 = !soloCod8 || /^\d{8}$/.test(formatearCodigo(rawCod).replace(/\s/g, ''));
+
+            // Restricción 2: ninguna palabra excluida debe aparecer en el nombre/descripción
+            const matchExcluir = palabrasExcluidas.length === 0
+                || !palabrasExcluidas.some(pe => nombre.includes(pe));
+
+            return matchD1 && matchD2 && matchD3 && matchMarca && matchCod && matchCodAlt && matchCod8 && matchExcluir;
+        });
+
+        paginaActual = 1;
+        mostrarResultados(resultadosActuales);
+    }
+
+    function copiarCodigo(elemento, texto) {
+        if (!texto) return;
+        navigator.clipboard.writeText(texto).then(() => {
+            const originalText = elemento.innerText;
+            elemento.innerText = "¡Copiado!";
+            elemento.classList.add("copied");
+            setTimeout(() => {
+                elemento.innerText = originalText;
+                elemento.classList.remove("copied");
+            }, 1200);
+        });
+    }
+
+    function mostrarResultados(lista) {
+        const tbody = document.getElementById('resultadosBody');
+        const btnExport = document.getElementById('btnExport');
+        const paginationFooter = document.getElementById('paginationFooter');
+        const headerPageIndicator = document.getElementById('headerPageIndicator');
+        tbody.innerHTML = '';
+
+        if (!lista || lista.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No se encontraron productos que coincidan con la búsqueda.</td></tr>`;
+            document.getElementById('counter').innerText = 'Resultados encontrados: 0';
+            btnExport.disabled = true;
+            if (paginationFooter) paginationFooter.style.display = 'none';
+            if (headerPageIndicator) headerPageIndicator.style.display = 'none';
+            return;
+        }
+
+        btnExport.disabled = false;
+        const totalItems = lista.length;
+        const totalPaginas = Math.ceil(totalItems / tamanoPagina);
+        
+        // Mantener paginaActual dentro de límites
+        if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+        if (paginaActual < 1) paginaActual = 1;
+
+        const inicio = (paginaActual - 1) * tamanoPagina;
+        const fin = Math.min(inicio + tamanoPagina, totalItems);
+        const paginaItems = lista.slice(inicio, fin);
+
+        document.getElementById('counter').innerText = `Resultados encontrados: ${totalItems.toLocaleString('es-AR')}`;
+        
+        if (headerPageIndicator) {
+            headerPageIndicator.innerText = `Pág. ${paginaActual} de ${totalPaginas}`;
+            headerPageIndicator.style.display = 'inline-block';
+        }
+
+        for (let i = 0; i < paginaItems.length; i++) {
+            const p = paginaItems[i];
+            const rawCod = obtenerValor(p, ['código', 'codigo', 'cod']);
+            const rawCodAlt = obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt']);
+            const rawMarca = obtenerValor(p, ['marca']);
+            const rawNombre = obtenerValor(p, ['nombre', 'descripcion', 'descripción', 'detalle']);
+
+            const codigoTexto = formatearCodigo(rawCod);
+            const codigoAltTexto = formatearCodigo(rawCodAlt);
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span class="code-badge" onclick="copiarCodigo(this, '${codigoTexto}')" title="Haz clic para copiar">${codigoTexto || '-'}</span></td>
+                <td class="alt-code-text">${codigoAltTexto || '-'}</td>
+                <td><span class="brand-tag">${rawMarca || '-'}</span></td>
+                <td>${rawNombre || '-'}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        // Actualizar rango y controles de paginación
+        document.getElementById('paginationRange').innerText = 
+            `Mostrando ${(inicio + 1).toLocaleString('es-AR')} - ${fin.toLocaleString('es-AR')} de ${totalItems.toLocaleString('es-AR')}`;
+        
+        renderPaginacion(totalPaginas);
+        if (paginationFooter) paginationFooter.style.display = 'flex';
+    }
+
+    function renderPaginacion(totalPaginas) {
+        const nav = document.getElementById('paginationNav');
+        nav.innerHTML = '';
+
+        if (totalPaginas <= 1) {
+            return;
+        }
+
+        // Botón Primera «
+        const btnFirst = document.createElement('button');
+        btnFirst.className = 'page-btn';
+        btnFirst.innerHTML = '«';
+        btnFirst.title = 'Primera página';
+        btnFirst.disabled = paginaActual === 1;
+        btnFirst.onclick = () => irAPagina(1);
+        nav.appendChild(btnFirst);
+
+        // Botón Anterior ‹
+        const btnPrev = document.createElement('button');
+        btnPrev.className = 'page-btn';
+        btnPrev.innerHTML = '‹';
+        btnPrev.title = 'Página anterior';
+        btnPrev.disabled = paginaActual === 1;
+        btnPrev.onclick = () => irAPagina(paginaActual - 1);
+        nav.appendChild(btnPrev);
+
+        // Calcular números de páginas visibles con elipsis
+        const delta = 2; // páginas a cada lado de la actual
+        const paginas = [];
+
+        for (let i = 1; i <= totalPaginas; i++) {
+            if (i === 1 || i === totalPaginas || (i >= paginaActual - delta && i <= paginaActual + delta)) {
+                paginas.push(i);
+            }
+        }
+
+        let ultimoNumero = 0;
+        for (let p of paginas) {
+            if (ultimoNumero && p - ultimoNumero > 1) {
+                const elip = document.createElement('span');
+                elip.className = 'page-ellipsis';
+                elip.innerText = '…';
+                nav.appendChild(elip);
+            }
+
+            const btnPage = document.createElement('button');
+            btnPage.className = 'page-btn' + (p === paginaActual ? ' active' : '');
+            btnPage.innerText = p;
+            if (p !== paginaActual) {
+                btnPage.onclick = () => irAPagina(p);
+            }
+            nav.appendChild(btnPage);
+
+            ultimoNumero = p;
+        }
+
+        // Botón Siguiente ›
+        const btnNext = document.createElement('button');
+        btnNext.className = 'page-btn';
+        btnNext.innerHTML = '›';
+        btnNext.title = 'Página siguiente';
+        btnNext.disabled = paginaActual === totalPaginas;
+        btnNext.onclick = () => irAPagina(paginaActual + 1);
+        nav.appendChild(btnNext);
+
+        // Botón Última »
+        const btnLast = document.createElement('button');
+        btnLast.className = 'page-btn';
+        btnLast.innerHTML = '»';
+        btnLast.title = 'Última página';
+        btnLast.disabled = paginaActual === totalPaginas;
+        btnLast.onclick = () => irAPagina(totalPaginas);
+        nav.appendChild(btnLast);
+    }
+
+    function irAPagina(num) {
+        paginaActual = num;
+        mostrarResultados(resultadosActuales);
+        const resultsEl = document.querySelector('.results-card');
+        if (resultsEl) {
+            resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function cambiarTamanoPagina(nuevoTamano) {
+        tamanoPagina = parseInt(nuevoTamano, 10);
+        paginaActual = 1;
+        mostrarResultados(resultadosActuales);
+    }
+
+    function exportarExcel() {
+        if (!resultadosActuales || resultadosActuales.length === 0) return;
+
+        const datosExcel = resultadosActuales.map(p => {
+            const rawCod = obtenerValor(p, ['código', 'codigo', 'cod']);
+            const rawCodAlt = obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt']);
+            const rawMarca = obtenerValor(p, ['marca']);
+            const rawNombre = obtenerValor(p, ['nombre', 'descripcion', 'descripción', 'detalle']);
+
+            return {
+                'Código': formatearCodigo(rawCod),
+                'Código Alternativo': formatearCodigo(rawCodAlt),
+                'Marca': rawMarca,
+                'Nombre / Descripción': rawNombre
+            };
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(datosExcel);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Resultados");
+
+        const fecha = new Date().toISOString().slice(0,10);
+        XLSX.writeFile(workbook, `Busqueda_Productos_${fecha}.xlsx`);
+    }
+
+    function limpiar() {
+        document.getElementById('det1').value = '';
+        document.getElementById('det2').value = '';
+        document.getElementById('det3').value = '';
+        document.getElementById('marca').value = '';
+        document.getElementById('codigo').value = '';
+        document.getElementById('codAlt').value = '';
+        // Limpiar restricciones
+        const chkCod8 = document.getElementById('chkCod8');
+        const chkExcluir = document.getElementById('chkExcluir');
+        chkCod8.checked = false;
+        chkExcluir.checked = false;
+        document.getElementById('labelCod8').classList.remove('active');
+        document.getElementById('labelExcluir').classList.remove('active');
+        document.getElementById('exclusionPanel').classList.remove('visible');
+        document.getElementById('palabrasExcluidas').value = '';
+        resultadosActuales = [];
+        paginaActual = 1;
+        document.getElementById('pageSizeSelect').value = "50";
+        document.getElementById('btnExport').disabled = true;
+        document.getElementById('counter').innerText = 'Sin búsquedas activas';
+        const paginationFooter = document.getElementById('paginationFooter');
+        if (paginationFooter) paginationFooter.style.display = 'none';
+        const headerPageIndicator = document.getElementById('headerPageIndicator');
+        if (headerPageIndicator) headerPageIndicator.style.display = 'none';
+        document.getElementById('resultadosBody').innerHTML = `<tr><td colspan="4" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td></tr>`;
+    }
+</script>
+
 </body>
 </html>

@@ -264,6 +264,15 @@
             box-shadow: 0 0 0 3px var(--primary-glow);
         }
 
+        .field-hint {
+            font-size: 11px;
+            color: var(--text-light);
+            font-style: italic;
+            text-transform: none;
+            letter-spacing: 0;
+            font-weight: 500;
+        }
+
         /* Barra de Acciones */
         .actions-bar {
             display: flex;
@@ -814,8 +823,8 @@
                 <input type="text" id="det3" placeholder="Ej: XXL">
             </div>
             <div class="form-group">
-                <label for="marca">Marca</label>
-                <input type="text" id="marca" placeholder="Ej: OMBU">
+                <label for="marca">Marca <span class="field-hint">(varias separadas con ;)</span></label>
+                <input type="text" id="marca" placeholder="Ej: BAHCO; STANLEY; IRIMO" title="Separar múltiples marcas con ;">
             </div>
             <div class="form-group">
                 <label for="codigo">Código MyLogic</label>
@@ -1034,9 +1043,14 @@
         const d1 = document.getElementById('det1').value.toUpperCase().trim();
         const d2 = document.getElementById('det2').value.toUpperCase().trim();
         const d3 = document.getElementById('det3').value.toUpperCase().trim();
-        const marca = document.getElementById('marca').value.toUpperCase().trim();
         const cod = document.getElementById('codigo').value.toUpperCase().trim();
         const codAlt = document.getElementById('codAlt').value.toUpperCase().trim();
+
+        // Marca: admite varias marcas separadas por ";" (se trae cualquiera de ellas)
+        const marcas = document.getElementById('marca').value
+            .split(';')
+            .map(m => m.toUpperCase().trim())
+            .filter(m => m.length > 0);
 
         // Restricción 1: Solo código de 8 dígitos numéricos
         const soloCod8 = document.getElementById('chkCod8').checked;
@@ -1065,7 +1079,7 @@
             const matchD1 = !d1 || nombre.includes(d1);
             const matchD2 = !d2 || nombre.includes(d2);
             const matchD3 = !d3 || nombre.includes(d3);
-            const matchMarca = !marca || pMarca.includes(marca);
+            const matchMarca = marcas.length === 0 || marcas.some(m => pMarca.includes(m));
             const matchCod = !cod || pCod.includes(cod);
             const matchCodAlt = !codAlt || pCodAlt.includes(codAlt);
 

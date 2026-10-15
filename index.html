@@ -878,13 +878,16 @@
                     <tr>
                         <th>Código</th>
                         <th>Código Alt.</th>
+                        <th>Nombre</th>
+                        <th>Característica</th>
                         <th>Marca</th>
-                        <th>Nombre / Descripción</th>
+                        <th>Descripción</th>
+                        <th>Tipo de reposición</th>
                     </tr>
                 </thead>
                 <tbody id="resultadosBody">
                     <tr>
-                        <td colspan="4" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td>
+                        <td colspan="7" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td>
                     </tr>
                 </tbody>
             </table>
@@ -957,9 +960,9 @@
     window.onload = async function() {
         const statusDiv = document.getElementById('status');
         const urls = [
-            'https://raw.githubusercontent.com/leandrocuadro/productos.csv/refs/heads/main/productos.csv',
-            'https://raw.githubusercontent.com/leandrocuadro/productos.csv/main/productos.csv',
-            'https://cdn.jsdelivr.net/gh/leandrocuadro/productos.csv@main/productos.csv',
+            'https://raw.githubusercontent.com/leandrocuadro/AltF2/refs/heads/main/productos.csv',
+            'https://raw.githubusercontent.com/leandrocuadro/AltF2/main/productos.csv',
+            'https://cdn.jsdelivr.net/gh/leandrocuadro/AltF2@main/productos.csv',
             './productos.csv'
         ];
 
@@ -1070,8 +1073,13 @@
             const rawMarca = obtenerValor(p, ['marca']);
             const rawCod = obtenerValor(p, ['código', 'codigo', 'cod']);
             const rawCodAlt = obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt']);
+            const rawDesc = obtenerValor(p, ['descripcion', 'descripción']);
+            const rawCaract = obtenerValor(p, ['caracteristica', 'característica']);
+            const rawRepos = obtenerValor(p, ['tipo de reposicion', 'tipo de reposición', 'reposicion']);
 
-            const nombre = rawNombre.toUpperCase();
+            // Texto donde buscan los Detalles 1/2/3 y la exclusión de palabras:
+            // nombre + descripción + característica + tipo de reposición
+            const nombre = [rawNombre, rawDesc, rawCaract, rawRepos].join(' | ').toUpperCase();
             const pMarca = rawMarca.toUpperCase();
             const pCod = formatearCodigo(rawCod).toUpperCase();
             const pCodAlt = formatearCodigo(rawCodAlt).toUpperCase();
@@ -1118,7 +1126,7 @@
         tbody.innerHTML = '';
 
         if (!lista || lista.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No se encontraron productos que coincidan con la búsqueda.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No se encontraron productos que coincidan con la búsqueda.</td></tr>`;
             document.getElementById('counter').innerText = 'Resultados encontrados: 0';
             btnExport.disabled = true;
             if (paginationFooter) paginationFooter.style.display = 'none';
@@ -1151,6 +1159,9 @@
             const rawCodAlt = obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt']);
             const rawMarca = obtenerValor(p, ['marca']);
             const rawNombre = obtenerValor(p, ['nombre', 'descripcion', 'descripción', 'detalle']);
+            const rawDesc = obtenerValor(p, ['descripcion', 'descripción']);
+            const rawCaract = obtenerValor(p, ['caracteristica', 'característica']);
+            const rawRepos = obtenerValor(p, ['tipo de reposicion', 'tipo de reposición', 'reposicion']);
 
             const codigoTexto = formatearCodigo(rawCod);
             const codigoAltTexto = formatearCodigo(rawCodAlt);
@@ -1159,8 +1170,11 @@
             tr.innerHTML = `
                 <td><span class="code-badge" onclick="copiarCodigo(this, '${codigoTexto}')" title="Haz clic para copiar">${codigoTexto || '-'}</span></td>
                 <td class="alt-code-text">${codigoAltTexto || '-'}</td>
-                <td><span class="brand-tag">${rawMarca || '-'}</span></td>
                 <td>${rawNombre || '-'}</td>
+                <td>${rawCaract || '-'}</td>
+                <td><span class="brand-tag">${rawMarca || '-'}</span></td>
+                <td>${rawDesc || '-'}</td>
+                <td>${rawRepos || '-'}</td>
             `;
             tbody.appendChild(tr);
         }
@@ -1271,12 +1285,18 @@
             const rawCodAlt = obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt']);
             const rawMarca = obtenerValor(p, ['marca']);
             const rawNombre = obtenerValor(p, ['nombre', 'descripcion', 'descripción', 'detalle']);
+            const rawDesc = obtenerValor(p, ['descripcion', 'descripción']);
+            const rawCaract = obtenerValor(p, ['caracteristica', 'característica']);
+            const rawRepos = obtenerValor(p, ['tipo de reposicion', 'tipo de reposición', 'reposicion']);
 
             return {
                 'Código': formatearCodigo(rawCod),
                 'Código Alternativo': formatearCodigo(rawCodAlt),
+                'Nombre': rawNombre,
+                'Característica': rawCaract,
                 'Marca': rawMarca,
-                'Nombre / Descripción': rawNombre
+                'Descripción': rawDesc,
+                'Tipo de reposición': rawRepos
             };
         });
 
@@ -1313,7 +1333,7 @@
         if (paginationFooter) paginationFooter.style.display = 'none';
         const headerPageIndicator = document.getElementById('headerPageIndicator');
         if (headerPageIndicator) headerPageIndicator.style.display = 'none';
-        document.getElementById('resultadosBody').innerHTML = `<tr><td colspan="4" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td></tr>`;
+        document.getElementById('resultadosBody').innerHTML = `<tr><td colspan="7" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td></tr>`;
     }
 </script>
 

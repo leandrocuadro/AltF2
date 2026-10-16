@@ -742,6 +742,58 @@
             user-select: none;
         }
 
+        /* Orden y filtros en encabezados de resultados */
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th.sortable:hover {
+            background-color: #334155;
+        }
+
+        .sort-ind {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-left: 4px;
+        }
+
+        .sort-ind.activo {
+            opacity: 1;
+            color: #93c5fd;
+        }
+
+        tr.filter-row th {
+            background-color: #334155;
+            padding: 8px 10px;
+            font-weight: 500;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .col-filter {
+            width: 100%;
+            min-width: 90px;
+            padding: 5px 8px;
+            border: 1px solid #94a3b8;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-family: var(--font-sans);
+            color: var(--text-main);
+            background: #ffffff;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .col-filter::placeholder {
+            color: #94a3b8;
+        }
+
+        .col-filter:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
         /* Responsividad */
         @media (max-width: 640px) {
             body {
@@ -878,16 +930,27 @@
                     <tr>
                         <th>Código</th>
                         <th>Código Alt.</th>
-                        <th>Nombre</th>
-                        <th>Característica</th>
-                        <th>Marca</th>
+                        <th class="sortable" onclick="ordenarPor('nombre')" title="Clic para ordenar A-Z / Z-A">Nombre <span class="sort-ind" data-sort="nombre">⇅</span></th>
                         <th>Descripción</th>
+                        <th class="sortable" onclick="ordenarPor('marca')" title="Clic para ordenar A-Z / Z-A">Marca <span class="sort-ind" data-sort="marca">⇅</span></th>
+                        <th>Característica</th>
+                        <th>Cantidad por bulto</th>
                         <th>Tipo de reposición</th>
+                    </tr>
+                    <tr class="filter-row">
+                        <th><input type="text" class="col-filter" placeholder="Filtrar..." aria-label="Filtrar Código" oninput="setFiltroEncabezado('cod', this.value)"></th>
+                        <th><input type="text" class="col-filter" placeholder="Filtrar..." aria-label="Filtrar Código Alternativo" oninput="setFiltroEncabezado('codAlt', this.value)"></th>
+                        <th><input type="text" class="col-filter" placeholder="Filtrar..." aria-label="Filtrar Nombre" oninput="setFiltroEncabezado('nombre', this.value)"></th>
+                        <th><input type="text" class="col-filter" placeholder="Filtrar..." aria-label="Filtrar Descripción" oninput="setFiltroEncabezado('desc', this.value)"></th>
+                        <th><input type="text" class="col-filter" placeholder="Filtrar..." aria-label="Filtrar Marca" oninput="setFiltroEncabezado('marca', this.value)"></th>
+                        <th><input type="text" class="col-filter" placeholder="Filtrar..." aria-label="Filtrar Característica" oninput="setFiltroEncabezado('caract', this.value)"></th>
+                        <th><input type="text" class="col-filter" placeholder="Filtrar..." aria-label="Filtrar Cantidad por bulto" oninput="setFiltroEncabezado('cantidad', this.value)"></th>
+                        <th><input type="text" class="col-filter" placeholder="Filtrar..." aria-label="Filtrar Tipo de reposición" oninput="setFiltroEncabezado('repos', this.value)"></th>
                     </tr>
                 </thead>
                 <tbody id="resultadosBody">
                     <tr>
-                        <td colspan="7" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td>
+                        <td colspan="8" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td>
                     </tr>
                 </tbody>
             </table>
@@ -916,20 +979,29 @@
 
 <script>
     let productos = [];
-    let resultadosActuales = [];
+    let busquedaRealizada = false;
+    let resultadosBase = [];     // resultados de la búsqueda principal (cada ítem: { c: campos, n: campos normalizados })
+    let resultadosActuales = []; // vista final tras filtros de encabezado y orden (tabla y Excel)
     let paginaActual = 1;
     let tamanoPagina = 50;
+
+    // Filtros por encabezado (se suman a los filtros principales) y orden
+    const COLUMNAS_FILTRABLES = ['cod', 'codAlt', 'nombre', 'desc', 'marca', 'caract', 'cantidad', 'repos'];
+    let filtrosEncabezado = {};
+    COLUMNAS_FILTRABLES.forEach(c => filtrosEncabezado[c] = '');
+    let ordenCampo = null;       // 'nombre' | 'marca' | null
+    let ordenDireccion = 'asc';  // 'asc' | 'desc'
 
     // Busca un valor en el objeto p probando varios nombres de columna (ignora mayúsculas y acentos)
     function obtenerValor(obj, nombresPosibles) {
         if (!obj) return '';
         const keys = Object.keys(obj);
-        
+
         for (let posible of nombresPosibles) {
-            const posibleLimpio = posible.toLowerCase().replace(/^\uFEFF/, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-            
+            const posibleLimpio = posible.toLowerCase().replace(/^﻿/, '').normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+
             for (let key of keys) {
-                const keyLimpia = key.toLowerCase().replace(/^\uFEFF/, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                const keyLimpia = key.toLowerCase().replace(/^﻿/, '').normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
                 if (keyLimpia === posibleLimpio || keyLimpia.includes(posibleLimpio)) {
                     const val = obj[key];
                     if (val !== undefined && val !== null) return String(val).trim();
@@ -946,7 +1018,7 @@
         if (!str) return '';
 
         let strNormalizado = str.replace(',', '.');
-        
+
         if (/^[+-]?\d+(\.\d+)?e[+-]?\d+$/i.test(strNormalizado)) {
             let num = Number(strNormalizado);
             if (!isNaN(num) && isFinite(num)) {
@@ -954,6 +1026,34 @@
             }
         }
         return str;
+    }
+
+    // Quita acentos y pasa a mayúsculas (para comparar sin distinguir acentos)
+    function normalizarTexto(str) {
+        return String(str || '')
+            .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .toUpperCase().trim();
+    }
+
+    // Extrae los 8 campos que se muestran de un producto
+    function extraerCampos(p) {
+        return {
+            cod: formatearCodigo(obtenerValor(p, ['código', 'codigo', 'cod'])),
+            codAlt: formatearCodigo(obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt'])),
+            nombre: obtenerValor(p, ['nombre', 'descripcion', 'descripción', 'detalle']),
+            desc: obtenerValor(p, ['descripcion', 'descripción']),
+            marca: obtenerValor(p, ['marca']),
+            caract: obtenerValor(p, ['caracteristica', 'característica']),
+            cantidad: obtenerValor(p, ['cantidad por bulto']),
+            repos: obtenerValor(p, ['tipo de reposicion', 'tipo de reposición', 'reposicion'])
+        };
+    }
+
+    // Crea un ítem de resultado con sus campos y su versión normalizada (para filtrar y ordenar rápido)
+    function crearItem(c) {
+        const n = {};
+        COLUMNAS_FILTRABLES.forEach(k => n[k] = normalizarTexto(c[k]));
+        return { c, n };
     }
 
     // Cargar automáticamente productos.csv desde GitHub o local
@@ -971,7 +1071,7 @@
                 if (res.ok) {
                     const text = await res.text();
                     if (text && text.trim().length > 0) {
-                        csvText = text.replace(/^\uFEFF/, ''); // Eliminar BOM si está presente
+                        csvText = text.replace(/^﻿/, ''); // Eliminar BOM si está presente
                         break;
                     }
                 }
@@ -1035,6 +1135,7 @@
         }
     }
 
+    // Búsqueda principal (campos de arriba). Luego se aplican los filtros y el orden de los encabezados.
     function filtrarProductos() {
         if (!productos || productos.length === 0) {
             alert("La base de datos aún no se ha cargado.");
@@ -1066,41 +1167,90 @@
                 .filter(p => p.length > 0)
             : [];
 
-        resultadosActuales = productos.filter(p => {
-            const rawNombre = obtenerValor(p, ['nombre', 'descripcion', 'descripción', 'detalle']);
-            const rawMarca = obtenerValor(p, ['marca']);
-            const rawCod = obtenerValor(p, ['código', 'codigo', 'cod']);
-            const rawCodAlt = obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt']);
-            const rawDesc = obtenerValor(p, ['descripcion', 'descripción']);
-            const rawCaract = obtenerValor(p, ['caracteristica', 'característica']);
-            const rawRepos = obtenerValor(p, ['tipo de reposicion', 'tipo de reposición', 'reposicion']);
+        resultadosBase = [];
+        for (const p of productos) {
+            const c = extraerCampos(p);
 
             // Texto donde buscan los Detalles 1/2/3 y la exclusión de palabras:
-            // nombre + descripción + característica + tipo de reposición
-            const nombre = [rawNombre, rawDesc, rawCaract, rawRepos].join(' | ').toUpperCase();
-            const pMarca = rawMarca.toUpperCase();
-            const pCod = formatearCodigo(rawCod).toUpperCase();
-            const pCodAlt = formatearCodigo(rawCodAlt).toUpperCase();
+            // nombre + descripción + característica + cantidad por bulto + tipo de reposición
+            const textoBusqueda = [c.nombre, c.desc, c.caract, c.cantidad, c.repos].join(' | ').toUpperCase();
+            const pMarca = c.marca.toUpperCase();
+            const pCod = c.cod.toUpperCase();
+            const pCodAlt = c.codAlt.toUpperCase();
 
-            const matchD1 = !d1 || nombre.includes(d1);
-            const matchD2 = !d2 || nombre.includes(d2);
-            const matchD3 = !d3 || nombre.includes(d3);
+            const matchD1 = !d1 || textoBusqueda.includes(d1);
+            const matchD2 = !d2 || textoBusqueda.includes(d2);
+            const matchD3 = !d3 || textoBusqueda.includes(d3);
             const matchMarca = marcas.length === 0 || marcas.some(m => pMarca.includes(m));
             const matchCod = !cod || pCod.includes(cod);
             const matchCodAlt = !codAlt || pCodAlt.includes(codAlt);
 
             // Restricción 1: el código (formateado, sin espacios) debe tener exactamente 8 dígitos
-            const matchCod8 = !soloCod8 || /^\d{8}$/.test(formatearCodigo(rawCod).replace(/\s/g, ''));
+            const matchCod8 = !soloCod8 || /^\d{8}$/.test(c.cod.replace(/\s/g, ''));
 
-            // Restricción 2: ninguna palabra excluida debe aparecer en el nombre/descripción
+            // Restricción 2: ninguna palabra excluida debe aparecer en el texto de búsqueda
             const matchExcluir = palabrasExcluidas.length === 0
-                || !palabrasExcluidas.some(pe => nombre.includes(pe));
+                || !palabrasExcluidas.some(pe => textoBusqueda.includes(pe));
 
-            return matchD1 && matchD2 && matchD3 && matchMarca && matchCod && matchCodAlt && matchCod8 && matchExcluir;
-        });
+            if (matchD1 && matchD2 && matchD3 && matchMarca && matchCod && matchCodAlt && matchCod8 && matchExcluir) {
+                resultadosBase.push(crearItem(c));
+            }
+        }
 
+        busquedaRealizada = true;
         paginaActual = 1;
+        aplicarVista();
+    }
+
+    // Aplica los filtros de encabezado y el orden sobre los resultados de la búsqueda principal
+    function aplicarVista() {
+        let vista = resultadosBase.filter(item =>
+            COLUMNAS_FILTRABLES.every(col => !filtrosEncabezado[col] || item.n[col].includes(filtrosEncabezado[col]))
+        );
+
+        if (ordenCampo) {
+            const factor = ordenDireccion === 'asc' ? 1 : -1;
+            vista.sort((a, b) =>
+                factor * a.n[ordenCampo].localeCompare(b.n[ordenCampo], 'es', { numeric: true, sensitivity: 'base' })
+            );
+        }
+
+        resultadosActuales = vista;
         mostrarResultados(resultadosActuales);
+    }
+
+    // Filtro escrito en el encabezado de una columna (se suma a los filtros principales)
+    function setFiltroEncabezado(col, valor) {
+        filtrosEncabezado[col] = normalizarTexto(valor);
+        if (!busquedaRealizada) return;
+        paginaActual = 1;
+        aplicarVista();
+    }
+
+    // Orden: clic en Nombre o Marca → A-Z, otro clic → Z-A, otro clic → sin orden
+    function ordenarPor(campo) {
+        if (ordenCampo !== campo) {
+            ordenCampo = campo;
+            ordenDireccion = 'asc';
+        } else if (ordenDireccion === 'asc') {
+            ordenDireccion = 'desc';
+        } else {
+            ordenCampo = null;
+            ordenDireccion = 'asc';
+        }
+        actualizarIndicadoresOrden();
+        if (busquedaRealizada) {
+            paginaActual = 1;
+            aplicarVista();
+        }
+    }
+
+    function actualizarIndicadoresOrden() {
+        document.querySelectorAll('.sort-ind').forEach(el => {
+            const activo = ordenCampo === el.dataset.sort;
+            el.textContent = activo ? (ordenDireccion === 'asc' ? '▲' : '▼') : '⇅';
+            el.classList.toggle('activo', activo);
+        });
     }
 
     function copiarCodigo(elemento, texto) {
@@ -1124,7 +1274,7 @@
         tbody.innerHTML = '';
 
         if (!lista || lista.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No se encontraron productos que coincidan con la búsqueda.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No se encontraron productos que coincidan con la búsqueda.</td></tr>`;
             document.getElementById('counter').innerText = 'Resultados encontrados: 0';
             btnExport.disabled = true;
             if (paginationFooter) paginationFooter.style.display = 'none';
@@ -1135,7 +1285,7 @@
         btnExport.disabled = false;
         const totalItems = lista.length;
         const totalPaginas = Math.ceil(totalItems / tamanoPagina);
-        
+
         // Mantener paginaActual dentro de límites
         if (paginaActual > totalPaginas) paginaActual = totalPaginas;
         if (paginaActual < 1) paginaActual = 1;
@@ -1145,42 +1295,32 @@
         const paginaItems = lista.slice(inicio, fin);
 
         document.getElementById('counter').innerText = `Resultados encontrados: ${totalItems.toLocaleString('es-AR')}`;
-        
+
         if (headerPageIndicator) {
             headerPageIndicator.innerText = `Pág. ${paginaActual} de ${totalPaginas}`;
             headerPageIndicator.style.display = 'inline-block';
         }
 
-        for (let i = 0; i < paginaItems.length; i++) {
-            const p = paginaItems[i];
-            const rawCod = obtenerValor(p, ['código', 'codigo', 'cod']);
-            const rawCodAlt = obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt']);
-            const rawMarca = obtenerValor(p, ['marca']);
-            const rawNombre = obtenerValor(p, ['nombre', 'descripcion', 'descripción', 'detalle']);
-            const rawDesc = obtenerValor(p, ['descripcion', 'descripción']);
-            const rawCaract = obtenerValor(p, ['caracteristica', 'característica']);
-            const rawRepos = obtenerValor(p, ['tipo de reposicion', 'tipo de reposición', 'reposicion']);
-
-            const codigoTexto = formatearCodigo(rawCod);
-            const codigoAltTexto = formatearCodigo(rawCodAlt);
-
+        for (const item of paginaItems) {
+            const c = item.c;
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><span class="code-badge" onclick="copiarCodigo(this, '${codigoTexto}')" title="Haz clic para copiar">${codigoTexto || '-'}</span></td>
-                <td class="alt-code-text">${codigoAltTexto || '-'}</td>
-                <td>${rawNombre || '-'}</td>
-                <td>${rawCaract || '-'}</td>
-                <td><span class="brand-tag">${rawMarca || '-'}</span></td>
-                <td>${rawDesc || '-'}</td>
-                <td>${rawRepos || '-'}</td>
+                <td><span class="code-badge" onclick="copiarCodigo(this, '${c.cod}')" title="Haz clic para copiar">${c.cod || '-'}</span></td>
+                <td class="alt-code-text">${c.codAlt || '-'}</td>
+                <td>${c.nombre || '-'}</td>
+                <td>${c.desc || '-'}</td>
+                <td><span class="brand-tag">${c.marca || '-'}</span></td>
+                <td>${c.caract || '-'}</td>
+                <td>${c.cantidad || '-'}</td>
+                <td>${c.repos || '-'}</td>
             `;
             tbody.appendChild(tr);
         }
 
         // Actualizar rango y controles de paginación
-        document.getElementById('paginationRange').innerText = 
+        document.getElementById('paginationRange').innerText =
             `Mostrando ${(inicio + 1).toLocaleString('es-AR')} - ${fin.toLocaleString('es-AR')} de ${totalItems.toLocaleString('es-AR')}`;
-        
+
         renderPaginacion(totalPaginas);
         if (paginationFooter) paginationFooter.style.display = 'flex';
     }
@@ -1275,28 +1415,20 @@
         mostrarResultados(resultadosActuales);
     }
 
+    // Exporta la vista actual (con filtros de encabezado y orden) en el mismo orden de columnas
     function exportarExcel() {
         if (!resultadosActuales || resultadosActuales.length === 0) return;
 
-        const datosExcel = resultadosActuales.map(p => {
-            const rawCod = obtenerValor(p, ['código', 'codigo', 'cod']);
-            const rawCodAlt = obtenerValor(p, ['código alternativo', 'codigo alternativo', 'código alt', 'codigo alt', 'cod alt']);
-            const rawMarca = obtenerValor(p, ['marca']);
-            const rawNombre = obtenerValor(p, ['nombre', 'descripcion', 'descripción', 'detalle']);
-            const rawDesc = obtenerValor(p, ['descripcion', 'descripción']);
-            const rawCaract = obtenerValor(p, ['caracteristica', 'característica']);
-            const rawRepos = obtenerValor(p, ['tipo de reposicion', 'tipo de reposición', 'reposicion']);
-
-            return {
-                'Código': formatearCodigo(rawCod),
-                'Código Alternativo': formatearCodigo(rawCodAlt),
-                'Nombre': rawNombre,
-                'Característica': rawCaract,
-                'Marca': rawMarca,
-                'Descripción': rawDesc,
-                'Tipo de reposición': rawRepos
-            };
-        });
+        const datosExcel = resultadosActuales.map(({ c }) => ({
+            'Código': c.cod,
+            'Código Alternativo': c.codAlt,
+            'Nombre': c.nombre,
+            'Descripción': c.desc,
+            'Marca': c.marca,
+            'Característica': c.caract,
+            'Cantidad por bulto': c.cantidad,
+            'Tipo de reposición': c.repos
+        }));
 
         const worksheet = XLSX.utils.json_to_sheet(datosExcel);
         const workbook = XLSX.utils.book_new();
@@ -1322,7 +1454,15 @@
         document.getElementById('labelExcluir').classList.remove('active');
         document.getElementById('exclusionPanel').classList.remove('visible');
         document.getElementById('palabrasExcluidas').value = '';
+        // Limpiar filtros de encabezado y orden
+        COLUMNAS_FILTRABLES.forEach(c => filtrosEncabezado[c] = '');
+        document.querySelectorAll('.col-filter').forEach(input => input.value = '');
+        ordenCampo = null;
+        ordenDireccion = 'asc';
+        actualizarIndicadoresOrden();
+        resultadosBase = [];
         resultadosActuales = [];
+        busquedaRealizada = false;
         paginaActual = 1;
         document.getElementById('pageSizeSelect').value = "50";
         document.getElementById('btnExport').disabled = true;
@@ -1331,7 +1471,7 @@
         if (paginationFooter) paginationFooter.style.display = 'none';
         const headerPageIndicator = document.getElementById('headerPageIndicator');
         if (headerPageIndicator) headerPageIndicator.style.display = 'none';
-        document.getElementById('resultadosBody').innerHTML = `<tr><td colspan="7" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td></tr>`;
+        document.getElementById('resultadosBody').innerHTML = `<tr><td colspan="8" class="empty-state">Ingresa algún criterio y haz clic en "Buscar" o presiona Enter.</td></tr>`;
     }
 </script>
 
